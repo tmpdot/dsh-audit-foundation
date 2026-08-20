@@ -29,20 +29,33 @@
   - `provider` 固定 `'copy'`（不写 git refs，绕开 gc 回收问题）；
   - `source: 'cdp'` + `tier: 'durable'` 必填（M9 标注）；
   - `kind` 词汇对齐 checkpoints v2（manual/auto/guard/mutation）。
-- **快照布局（草案）**：
-  `$DSH_HOME/dsh-audit-foundation/snapshots/<workspaceKeyHash16>/<uuid>/`
-  （copy 语义，与 `dsh-audit-common` workspace.mjs 同构算法）。
+- **快照布局（草案 v1，已落地）**：
+  `$DSH_HOME/dsh-audit-foundation/snapshots/<workspaceKeyHash16>/<uuid>/manifest.json`
+  ——布局解析纯函数在 `dsh-audit-common` workspace.mjs（`resolveCdpSnapshotRoot` /
+  `cdpWorkspaceDir` / `cdpSnapshotDir`，uuid 形状校验防路径注入，M6）；manifest
+  自描述 schema 在 `src/cdp-snapshots.mjs`（`formatVersion` / `ref` / `tree` /
+  `files[{rel,size,hash}]` / `prevHash` / `kind`；`tree` = `contentHash(files)`，
+  与 common hash.mjs 同算法）。
 - **保留策略（草案）**：独立 `maxSnapshots`/`maxBytes`（宽松默认 200 / 1 GiB）
   + 手动清理；归档 vs 逐出分离（M9）。
 
-## 3. `audit` 域 —— 草案 v1（审计记录，规划中，D5 待拍板）
+## 3. `audit` 域 —— 草案 v1（审计记录，D5 已拍板：首期实现，基础范围）
 
-- **状态**：草案（**D5 已拍板：首期实现，基础范围**——成对事件聚合 + 哈希链 +
-  保留策略；高级分析/聚合报表留给生态插件；schema 先行）。
+- **状态**：草案 v1（schema + 审计策略 + 派生纯函数已落地 2026-08；
+  `dsh-audit-ledger` 插件壳规划中——纯函数层零 DSH 依赖，CI 可测）。
 - **定位**：把 harness 关键事件聚合为追加式审计记录：`approval/asked` +
   `approval/decided` 成对、`permission/preset`、`tool/call` + `tool/result`、
   `checkpoint/*`、恢复（rollback）应用——**消费 harness 事件，不发明平行
   语义**（M4/M8）；payload 保留事件 data 快照。
+- **审计策略（F19）**：`auditPolicySchema`（`src/audit.mjs`）——`enabled`
+  总开关 / `categories` 过滤（缺省全录）/ `retention` 配额（缺省不限；
+  逐出语义对齐 `dsh-audit-common` 的 `computeRetention`，数量/字节独立生效、
+  逐出最旧）。
+- **事件 → 记录派生**：`dsh-audit-ledger` 的 `src/derive.mjs`（纯函数，零 DSH
+  依赖）——harness 事件归类（tool/call+result → tool、approval 成对 →
+  approval、permission/preset → permission、checkpoint/* → snapshot），未知
+  事件跳过；只产语义核，`id/seq/time/prevHash` 由写路径落盘补齐（M7）。
+  **rollback / guard 类别为预留位**（生态事件，基础范围不发明平行语义）。
 - **记录 schema**：`src/audit.mjs`。要点：
   - `category`：approval | permission | tool | snapshot | rollback | guard；
   - `eventType`：harness 事件类型原文；
@@ -59,13 +72,21 @@
 形状对齐 harness 会话事件（`session.jsonl.zstd` / `sessionQuery.readSession`）；
 容错超集——未知字段剥离，精确严格性属于 harness 生产者。
 
-## 5. 视图模型（view schemas）—— 草案（D9：UI 与数据分离）
+## 5. 视图模型（view schemas）—— 草案 v1（D9：UI 与数据分离）
 
-- **状态**：草案（呈现层规划中；视图 schema 先行，M0）。
+- **状态**：草案 v1（schema 已落地 `src/views.mjs`，2026-08；UI 组件
+  `dsh-audit-ui` 规划中）。
 - **定位**：呈现层数据契约：`timeline-view`（时间线节点/徽标）、`diff-view`
   （逐文件行级 diff）、`audit-view`（审计记录视图）、`evidence-view`（导出预览）。
-  **UI 组件只消费视图模型**（`dsh-audit-ui`，不直接读存储域）；其他插件按同一
-  视图模型喂数据即可复用同一套 UI（D9）。
+  **UI 组件只消费视图模型**（不直接读存储域）；其他插件按同一视图模型喂数据
+  即可复用同一套 UI（D9）。
 - **数据流单向**：存储域 → 查询/聚合（纯函数）→ 视图模型（JSON）→ GET 端点 /
   slot props → UI 组件。
-- **校验器**：`src/views.mjs`（规划）从 `dsh-audit-spec` 导出（M0）。
+- **词汇对齐（M0/M8）**：来源/层级/类型/动作枚举沿用域草案（cdp-snapshots /
+  checkpoints v2 / audit / events）；audit 视图直接复用 audit 域词汇导出，
+  不重声明。
+- **对标立场（见 docs/technical-selections.md T4-4）**：生态对齐
+  dsh-checkpoint-diff 时间线面板词汇（degraded / branchId / A-M-D /
+  truncated），为其超集；行业无统一视图契约（Kibana / Sentry / Grafana
+  均产品内契约；OCSF / ECS 为存储/传输层 schema）——不采用行业产品 JSON。
+- **校验器**：`src/views.mjs` 从 `dsh-audit-spec` 导出（M0）。

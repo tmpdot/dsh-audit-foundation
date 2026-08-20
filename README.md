@@ -42,7 +42,7 @@ packages/
 | `dsh-audit-spec` | 规范 + 校验器 | 无 |
 | `dsh-audit-common` | 纯函数库 | 无 |
 | `dsh-checkpoint-producer`（规划） | 耐久变更前快照 + 哈希链 + 保留策略 | 自有域 `cdp-snapshots` + 自有目录 |
-| `dsh-audit-ledger`（规划，D5 待拍板） | 审计事件聚合记录 | 自有域 `audit` |
+| `dsh-audit-ledger`（骨架已建，D5 已拍板） | 审计事件聚合记录（派生纯函数已落地；插件壳规划中） | 自有域 `audit` |
 | `dsh-checkpoint-timeline` / `rollback` / `dsh-trace` / `dsh-evidence-export` / `dsh-guard-hints`（规划） | 消费侧拆分（从 dsh-checkpoint-diff 迁移） | 仅回滚写工作区 |
 | `dsh-audit-ui`（规划，D9） | 呈现组件（时间线/diff/审计视图/导出预览），只消费 spec 视图模型，不读存储域 | 无 |
 

@@ -60,3 +60,44 @@ export function snapshotBaseDir(snapshotDir, key) {
   const safe = key.length > 0 ? snapshotKeyDir(key) : '_unknown'
   return path.join(path.resolve(snapshotDir), safe)
 }
+
+// ---- cdp 快照布局（dsh-checkpoint-producer 专用；M6：与 rewind 根分离） ----
+// 布局见 DOMAINS.md §2：$DSH_HOME/dsh-audit-foundation/snapshots/<key16>/<uuid>/
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+/**
+ * cdp 快照根：$DSH_HOME/dsh-audit-foundation/snapshots（$DSH_HOME 缺失回退
+ * ~/.dsh/...）。与 rewind 的根（dsh-checkpoint-rewind）分离——不碰别的存储。
+ * @param {string|undefined} [dshHome] - 环境 $DSH_HOME（测试注入）。
+ * @returns {string} 绝对路径。
+ */
+export function resolveCdpSnapshotRoot(dshHome = process.env.DSH_HOME) {
+  return path.join(dshHome ?? defaultDshHome(), 'dsh-audit-foundation', 'snapshots')
+}
+
+/**
+ * cdp 工作区子目录：<root>/<workspaceKeyHash16>（算法同 snapshotKeyDir）。
+ * @param {string} snapshotRoot - cdp 快照根（绝对）。
+ * @param {string} key - 工作区键。
+ * @returns {string} 该工作区的 cdp 快照目录。
+ */
+export function cdpWorkspaceDir(snapshotRoot, key) {
+  const safe = key.length > 0 ? snapshotKeyDir(key) : '_unknown'
+  return path.join(path.resolve(snapshotRoot), safe)
+}
+
+/**
+ * cdp 单快照目录：<workspaceDir>/<uuid>。uuid 必须符合 UUID 形状（防路径注入；
+ * 生产者的实际写路径仍须过 pathguard，M6）。
+ * @param {string} snapshotRoot - cdp 快照根（绝对）。
+ * @param {string} key - 工作区键。
+ * @param {string} uuid - 快照记录 id（UUID）。
+ * @returns {string} 该快照的目录（manifest.json 所在处）。
+ */
+export function cdpSnapshotDir(snapshotRoot, key, uuid) {
+  if (typeof uuid !== 'string' || !UUID_RE.test(uuid)) {
+    throw new TypeError(`invalid snapshot uuid: ${uuid}`)
+  }
+  return path.join(cdpWorkspaceDir(snapshotRoot, key), uuid)
+}

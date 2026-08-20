@@ -46,8 +46,9 @@ DeepSeek Harness 生态的**安全与审计基座**（理念名 Trust Anchor）�
 spec/                规范包 dsh-audit-spec（MDP.md / CONTRACT.md / DOMAINS.md / src/ 校验器）
 packages/common/     纯函数库 dsh-audit-common（workspace / labels / diff-engine /
                      pathguard / hash —— 全部零 DSH 依赖，CI 可测）
-packages/*           插件包（规划：producer / audit-ledger / timeline / rollback /
-                     trace / evidence-export / guard-hints）
+packages/*           插件包（audit-ledger 骨架已建——纯函数层零 DSH 依赖；
+                     规划：producer / timeline / rollback / trace /
+                     evidence-export / guard-hints）
 docs/                设计决策（bundle-foundation-design.md）+ 技术选型登记表
                      （technical-selections.md，T1–T4 工作流）
 ```

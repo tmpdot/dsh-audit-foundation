@@ -3,10 +3,13 @@
 
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
+import { createHash } from 'node:crypto'
 import {
   approvalAskedEventSchema,
   approvalDecidedEventSchema,
+  auditPolicySchema,
   auditRecordSchema,
+  cdpSnapshotManifestSchema,
   cdpSnapshotRecordSchema,
   checkpointEventSchema,
   permissionPresetEventSchema,
@@ -121,4 +124,68 @@ test('events: permission/preset requires a preset name; checkpoint/* accepts any
   assert.throws(() => permissionPresetEventSchema.parse({ type: 'permission/preset', seq: 1, data: {} }))
   const checkpoint = checkpointEventSchema.parse({ type: 'checkpoint/snapshot', seq: 1, time: 1, data: { id: 'x' } })
   assert.equal(checkpoint.type, 'checkpoint/snapshot')
+})
+
+// ---- cdp manifest.json（copy 载体快照目录自描述）----
+
+// 与 dsh-audit-common contentHash 同算法的测试内复刻（spec 测试不得依赖 common）。
+function manifestTree(files) {
+  const lines = [...files]
+    .sort((a, b) => (a.rel < b.rel ? -1 : a.rel > b.rel ? 1 : 0))
+    .map((f) => `${f.rel}\u0000${f.hash}`)
+  return createHash('sha256').update(lines.join('\n')).digest('hex')
+}
+
+test('cdp manifest v1: accepts a well-formed self-describing manifest', () => {
+  const files = [
+    { rel: 'b.txt', size: 2, hash: H64 },
+    { rel: 'a.txt', size: 1, hash: H64 },
+  ]
+  const parsed = cdpSnapshotManifestSchema.parse({
+    formatVersion: 1, id: 'uuid-1', createdAt: 1000, ref: H64,
+    tree: manifestTree(files), files, prevHash: null, kind: 'mutation',
+  })
+  assert.equal(parsed.formatVersion, 1)
+  assert.equal(parsed.tree, manifestTree(files)) // tree = contentHash(files)
+  assert.equal(parsed.kind, 'mutation')
+})
+
+test('cdp manifest v1: validates version/ref/tree/hash/kind vocabulary', () => {
+  const files = [{ rel: 'a.txt', size: 1, hash: H64 }]
+  const base = {
+    formatVersion: 1, id: 'uuid-1', createdAt: 1, ref: H64,
+    tree: H64, files, prevHash: null, kind: 'auto',
+  }
+  assert.throws(() => cdpSnapshotManifestSchema.parse({ ...base, formatVersion: 2 }))
+  assert.throws(() => cdpSnapshotManifestSchema.parse({ ...base, ref: 'short' }))
+  assert.throws(() => cdpSnapshotManifestSchema.parse({ ...base, tree: 'x' }))
+  assert.throws(() => cdpSnapshotManifestSchema.parse({ ...base, files: [{ rel: '', size: 1, hash: H64 }] }))
+  assert.throws(() => cdpSnapshotManifestSchema.parse({ ...base, files: [{ rel: 'a', size: -1, hash: H64 }] }))
+  assert.throws(() => cdpSnapshotManifestSchema.parse({ ...base, kind: 'bogus' }))
+})
+
+// ---- audit 策略（F19：记录什么 / 留多久）----
+
+test('audit policy: defaults enable all categories with unlimited retention', () => {
+  const parsed = auditPolicySchema.parse({})
+  assert.equal(parsed.enabled, true)
+  assert.equal(parsed.categories, undefined)
+  assert.equal(parsed.retention, undefined)
+})
+
+test('audit policy: filters categories and caps retention', () => {
+  const parsed = auditPolicySchema.parse({
+    enabled: false,
+    categories: ['approval', 'permission'],
+    retention: { maxRecords: 100, maxBytes: 1024 },
+  })
+  assert.equal(parsed.enabled, false)
+  assert.deepEqual(parsed.categories, ['approval', 'permission'])
+  assert.equal(parsed.retention.maxRecords, 100)
+})
+
+test('audit policy: rejects unknown categories and negative limits', () => {
+  assert.throws(() => auditPolicySchema.parse({ categories: ['policy'] }))
+  assert.throws(() => auditPolicySchema.parse({ retention: { maxRecords: -1 } }))
+  assert.throws(() => auditPolicySchema.parse({ retention: { maxBytes: 1.5 } }))
 })

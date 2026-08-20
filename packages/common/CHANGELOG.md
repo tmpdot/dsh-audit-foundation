@@ -2,6 +2,17 @@
 
 本包变更记录（[Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)）。
 
+## [Unreleased]
+
+### Added
+
+- `retention.mjs`（新增）：保留策略纯函数 `computeRetention`（M9：数量/字节
+  配额独立生效、逐出最旧、count 优先归因；只算划分不执行删除——写路径归生产者）。
+- `workspace.mjs`：cdp 快照布局助手（`resolveCdpSnapshotRoot` /
+  `cdpWorkspaceDir` / `cdpSnapshotDir`，uuid 形状校验防路径注入；与 rewind
+  根分离，M6）。
+- 测试：retention 6 项 + cdp 布局 2 项。
+
 ## [0.1.0] - 2026-08
 
 ### Added

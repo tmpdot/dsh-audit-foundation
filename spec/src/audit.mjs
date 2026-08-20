@@ -27,3 +27,15 @@ export const auditRecordSchema = z.object({
   payload: z.record(z.string(), z.unknown()), // 事件 data 快照（JSON 可序列化）
   prevHash: z.string().regex(/^[0-9a-f]{64}$/u).nullable(), // 哈希链；首条 null
 })
+
+// 审计策略（F19，dsh-audit-ledger 的 config schema；归 spec，M0）：
+// 记录什么（categories 过滤）+ 留多久（retention 配额，逐出语义对齐
+// dsh-audit-common 的 computeRetention：数量/字节独立生效、逐出最旧）。
+export const auditPolicySchema = z.object({
+  enabled: z.boolean().default(true), // 总开关（false = 不写审计域）
+  categories: z.array(z.enum(AUDIT_CATEGORIES)).optional(), // 缺省 = 全部记录
+  retention: z.object({
+    maxRecords: z.number().int().nonnegative().nullable().optional(), // null/缺省 = 不限
+    maxBytes: z.number().int().nonnegative().nullable().optional(),
+  }).optional(),
+})

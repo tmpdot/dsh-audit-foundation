@@ -35,10 +35,10 @@
 
 | # | 主题 | 当前状态 | 对标立场 | 闸门 |
 |---|---|---|---|---|
-| T4-1 | 快照载体 | 草案已选 copy 目录 + manifest（理由：绕开 git gc 回收，rewind 教训） | 待补收集：git 对象模型（T2）、restic、casync/Nix store | ★ |
+| T4-1 | 快照载体 | 草案已选 copy 目录 + manifest（理由：绕开 git gc 回收，rewind 教训；双捕获去重 M8）；布局 helper + manifest schema 已落地（2026-08），**待你拍板** | **已收集**。生态：rewind copy provider（快照目录 + manifest.json，本仓同构布局）。行业：git 对象模型（[内容寻址 loose objects](https://git-scm.com/book/zh/v2/Git-内部原理-Git-对象)，未引用对象被 gc 回收——rewind 踩过的坑）、restic（[CDC 内容定义分块 + 快照去重](https://restic.net/blog/2015-09-12/restic-foundation1-cdc/)）、casync（[内容寻址分块归档](https://github.com/systemd/casync)）。**立场：部分对齐**——采纳"目录快照 + manifest 自描述 + 内容寻址 ref（sha256）"（与 git/restic/casync 同源理念）；不采用 git loose-object 存储（gc 回收风险）与块级 CDC（基础范围不承诺，留给生态） | ★ |
 | T4-2 | schema 校验器 | zod ^4.4.3（spec 唯一依赖，骨架期已用） | 待补收集：JSON Schema + ajv（行业事实标准）、io-ts、valibot | — |
-| T4-3 | 审计记录字段命名 | audit 域草案 v1（category/eventType/payload/prevHash…） | 待补收集：OCSF（OASIS，已 1.4+）、ECS、CEF、syslog RFC 5424 | ★ |
-| T4-4 | 视图模型形状 | D9 方向已定（timeline-view / diff-view / audit-view / evidence-view），字段形状未定 | 待补收集：生态面板方案、行业 dashboard 数据契约 | ★ |
+| T4-3 | 审计记录字段命名 | audit 域草案 v1 + 审计策略（F19）+ ledger 派生纯函数已落地（2026-08）；**待你拍板** | **已收集**。行业：OCSF（[category/class/type_id 分类结构](https://fleak.ai/blog/ocsf-anatomy)，OASIS 活跃演进 1.4+）、ECS（[event.category/action/outcome 分类字段](https://www.elastic.co/guide/en/ecs/8.8/ecs-using-the-categorization-fields.html)）、CEF（管道分隔 SIEM 传统格式，[规范](https://www.microfocus.com/documentation/arcsight/arcsight-smartconnectors-8.3/pdf-docbook/CEF-Specification.pdf)）、syslog（RFC 5424 文本协议）。**立场：部分对齐**——采用"category（宽）+ eventType（harness 事件原文）"两层分类（与 OCSF category/class、ECS category/action 同构）；不采用 CEF/syslog 文本协议（存储域不同）；eventType 保留 harness 原文、不另造编号（M8） | ★ |
+| T4-4 | 视图模型形状 | 草案 v1 已落地 `spec/src/views.mjs`（2026-08，含测试）；字段形状待你拍板 | **已收集**。生态：dsh-checkpoint-diff 时间线面板词汇（records[].id/degraded/branchId、files[].path+status A/M/D、truncated/totalFiles、markers）——草案为其超集。行业：无统一视图契约（Kibana / Sentry / Grafana 均产品内契约；OCSF / [ECS 分类字段](https://www.elastic.co/guide/en/ecs/8.8/ecs-using-the-categorization-fields.html) 为存储/传输层 schema）；unified diff 为文本层 T2 事实格式（[diff 包解析 git 方言](https://cdn.jsdelivr.net/npm/diff@9.0.0/README.md)），结构化 diff JSON 无标准（[jsondiffpatch deltas](https://raw.githubusercontent.com/benjamine/jsondiffpatch/master/docs/deltas.md) 为社区格式）。**立场：不采用**行业产品 JSON；字段沿用本仓库域词汇（camelCase），hunk 语义对齐 unified diff | ★ |
 
 ---
 
@@ -52,10 +52,10 @@
 | S4 | 记录流格式 | JSON Lines（对齐 harness `session.jsonl`） | T2 | [jsonlines.org](https://jsonlines.org/) | 已执行 | 2026-08 |
 | S5 | 压缩 | zstd（harness 已用 `session.jsonl.zstd`；基座仅只读消费） | T1 | [RFC 8878](https://www.rfc-editor.org/rfc/rfc8878) | 已执行（对齐 harness） | 2026-08 |
 | S6 | diff 算法 | 行级 LCS（common/diff-engine，迁移自 dsh-checkpoint-diff） | T3 | 展示格式 unified diff 为 T2 惯例（[GNU diffutils 文档](https://www.gnu.org/software/diffutils/manual/)） | 已执行 | 2026-08 |
-| S7 | 快照载体 | copy 目录 + manifest（不写 git refs） | T4 | 见 T4-1 | **待决策** | 2026-08 |
+| S7 | 快照载体 | copy 目录 + manifest（不写 git refs） | T4 | 见 T4-1 | **草案已落地（布局 helper + manifest schema v1），待拍板** | 2026-08 |
 | S8 | schema 校验器 | zod v4 | T4 | 见 T4-2 | **待决策** | 2026-08 |
-| S9 | 审计记录字段命名 | audit 域草案 v1（category/eventType/payload/prevHash/身份字段） | T4 | 见 T4-3 | **待决策** | 2026-08 |
-| S10 | 视图模型 | D9 方向已定（spec 导出视图 schema，`dsh-audit-ui` 只消费视图模型） | T4 | 见 T4-4 | **待决策** | 2026-08 |
+| S9 | 审计记录字段命名 | audit 域草案 v1（category/eventType/payload/prevHash/身份字段） | T4 | 见 T4-3 | **草案 v1 已细化（policy schema + ledger 骨架），待拍板** | 2026-08 |
+| S10 | 视图模型 | D9 方向已定（spec 导出视图 schema，`dsh-audit-ui` 只消费视图模型） | T4 | 见 T4-4 | **草案已落地（views.mjs v1），待拍板** | 2026-08 |
 | S11 | 快照布局 | `$DSH_HOME/dsh-audit-foundation/snapshots/<workspaceKeyHash16>/<uuid>/` | T3 | 与 rewind copy 布局同构（common/workspace.mjs 同算法） | 已执行（草案） | 2026-08 |
 | S12 | 导出格式 | 首期 JSON + MD；SARIF 留给生态（D7） | T1（JSON/MD） | [SARIF 2.1.0 OASIS 标准](https://docs.oasis-open.org/sarif/sarif/v2.1.0/sarif-v2.1.0.html)（生态可选位，不采用为基座首期范围） | 已决策 | 2026-08 |
 

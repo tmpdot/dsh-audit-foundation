@@ -8,11 +8,12 @@
 
 | 模块 | 职责 | MDP |
 |---|---|---|
-| `workspace.mjs` | 工作区键（workspaceKeyOf）/ 快照根解析 / 快照目录名（rewind 同构算法） | M8（组合不 fork） |
+| `workspace.mjs` | 工作区键（workspaceKeyOf）/ 快照根解析 / 快照目录名（rewind 同构算法）+ cdp 布局助手（resolveCdpSnapshotRoot / cdpWorkspaceDir / cdpSnapshotDir） | M8（组合不 fork）/ M6 |
 | `labels.mjs` | 意图标签：tool/call 事件 → 人类可读 label（路径相对化 / 命令简写 / 别名） | M4 |
 | `diff-engine.mjs` | 行级 LCS diff（Uint32Array 全表 + 单元上限降级）+ 二进制检测 | — |
 | `pathguard.mjs` | 写路径安全纯函数：normalizeTargetPath / isProtectedRel / resolveInside / classifyRollback / withKeyLock | M6 |
 | `hash.mjs` | 内容寻址（contentHash）/ 记录哈希链（recordHash / stableStringify） | M7 |
+| `retention.mjs` | 保留策略纯函数（computeRetention：数量/字节配额 → 保留/逐出划分；只算不删） | M9 |
 | `constants.mjs` | 词汇表与协议常量（providers / file status / diff ops / limits） | — |
 
 来源：`workspace`/`labels`/`diff-engine`/`pathguard`/`constants` 迁移自
@@ -26,6 +27,7 @@ import { workspaceKeyOf, snapshotKeyDir } from 'dsh-audit-common'
 import { normalizeTargetPath, resolveInside } from 'dsh-audit-common'
 import { diffLines } from 'dsh-audit-common'
 import { contentHash, recordHash } from 'dsh-audit-common'
+import { computeRetention } from 'dsh-audit-common'
 ```
 
 ## 合规自证（MDP）

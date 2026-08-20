@@ -5,7 +5,14 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { homedir } from 'node:os'
 import path from 'node:path'
-import { resolveSnapshotDir } from '../src/workspace.mjs'
+import {
+  cdpSnapshotDir,
+  cdpWorkspaceDir,
+  resolveCdpSnapshotRoot,
+  resolveSnapshotDir,
+  snapshotKeyDir,
+  workspaceKeyOf,
+} from '../src/workspace.mjs'
 
 const HOME = path.resolve('fake-home')
 
@@ -30,5 +37,32 @@ test('resolveSnapshotDir defaults to ~/.dsh/dsh-checkpoint-rewind when neither s
   } finally {
     if (previous === undefined) delete process.env.DSH_HOME
     else process.env.DSH_HOME = previous
+  }
+})
+
+test('cdp layout: resolveCdpSnapshotRoot under injected $DSH_HOME and default ~/.dsh', () => {
+  assert.equal(resolveCdpSnapshotRoot(HOME), path.join(HOME, 'dsh-audit-foundation', 'snapshots'))
+  const previous = process.env.DSH_HOME
+  delete process.env.DSH_HOME
+  try {
+    assert.equal(
+      resolveCdpSnapshotRoot(),
+      path.join(homedir(), '.dsh', 'dsh-audit-foundation', 'snapshots'),
+    )
+  } finally {
+    if (previous === undefined) delete process.env.DSH_HOME
+    else process.env.DSH_HOME = previous
+  }
+})
+
+test('cdp layout: workspace dir derives from snapshotKeyDir; uuid dir rejects path injection', () => {
+  const root = path.join(HOME, 'snapshots')
+  const key = workspaceKeyOf('D:\\ws')
+  const dir = cdpWorkspaceDir(root, key)
+  assert.equal(dir, path.join(root, snapshotKeyDir(key)))
+  const uuid = '123e4567-e89b-12d3-a456-426614174000'
+  assert.equal(cdpSnapshotDir(root, key, uuid), path.join(dir, uuid))
+  for (const bad of ['../evil', 'C:\\evil', 'not-a-uuid', '', '123e4567e89b12d3a456426614174000']) {
+    assert.throws(() => cdpSnapshotDir(root, key, bad), TypeError)
   }
 })

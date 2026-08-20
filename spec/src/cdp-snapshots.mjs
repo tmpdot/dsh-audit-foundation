@@ -37,3 +37,27 @@ export const cdpSnapshotRecordSchema = z.object({
   note: z.string().optional(),
   sessionBoundary: z.number().int().nonnegative().optional(),
 })
+
+// manifest.json（copy 载体快照目录自描述；布局 DOMAINS.md §2：
+// <root>/<workspaceKeyHash16>/<uuid>/manifest.json）。数据存储格式归 spec
+// （M0：项目本体是接口规范与数据存储格式）；tree = contentHash(files)（与
+// dsh-audit-common hash.mjs 同算法）。
+export const CDP_MANIFEST_VERSION = 1
+
+export const cdpManifestFileSchema = z.object({
+  rel: z.string().min(1), // 快照内相对路径
+  size: z.number().int().nonnegative(),
+  hash: z.string().regex(/^[0-9a-f]{64}$/u), // 逐文件 sha256
+})
+
+export const cdpSnapshotManifestSchema = z.object({
+  formatVersion: z.literal(CDP_MANIFEST_VERSION),
+  id: z.string().min(1), // 对齐记录 id（uuid）
+  createdAt: z.number().int().nonnegative(), // epoch 毫秒
+  ref: z.string().regex(CDP_SNAPSHOT_REF_RE), // 内容寻址（同内容 = 同 ref）
+  tree: z.string().regex(CDP_SNAPSHOT_REF_RE), // 清单树哈希 = contentHash(files)
+  files: z.array(cdpManifestFileSchema),
+  prevHash: z.string().regex(/^[0-9a-f]{64}$/u).nullable(), // 哈希链；首条 null
+  kind: z.enum(CDP_SNAPSHOT_KINDS), // 词汇对齐 checkpoints v2
+  note: z.string().optional(),
+})

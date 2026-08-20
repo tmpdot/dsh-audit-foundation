@@ -1,0 +1,32 @@
+{
+  "name": "dsh-audit-ledger",
+  "version": "0.1.0",
+  "description": "Trust Anchor audit ledger (D5, base scope): paired harness-event aggregation into the 'audit' storage domain with hash chain and retention policy. Skeleton: pure derivation functions, zero DSH deps, CI-testable; plugin shell (apply) planned",
+  "type": "module",
+  "main": "./src/index.mjs",
+  "exports": {
+    ".": "./src/index.mjs",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "src",
+    "README.md",
+    "CHANGELOG.md"
+  ],
+  "scripts": {
+    "test": "node --test-isolation=none --test \"test/**/*.test.mjs\"",
+    "prepack": "npm test"
+  },
+  "engines": {
+    "node": "^22.19.0 || >=24.0.0"
+  },
+  "keywords": [
+    "deepseek-harness",
+    "dsh",
+    "dsh-plugin",
+    "audit",
+    "ledger",
+    "security"
+  ],
+  "license": "Apache-2.0"
+}
