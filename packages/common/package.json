@@ -9,10 +9,13 @@
     "./package.json": "./package.json"
   },
   "files": [
-    "src"
+    "src",
+    "README.md",
+    "CHANGELOG.md"
   ],
   "scripts": {
-    "test": "node --test-isolation=none --test \"test/**/*.test.mjs\""
+    "test": "node --test-isolation=none --test \"test/**/*.test.mjs\"",
+    "prepack": "npm test"
   },
   "engines": {
     "node": "^22.19.0 || >=24.0.0"
