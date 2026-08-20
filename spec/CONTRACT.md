@@ -127,3 +127,12 @@ rewind 0.4.0 使用域 version 1，0.5.0 使用 version 2——消费者按 v2 �
 - 本文档与基座版本同轨（当前 0.1.x 草案期）；修订记录在 CHANGELOG 的
   [Unreleased] 累积。
 - 对契约的争议走 Issues；安全相关走 SECURITY.md 的私有上报。
+
+## 5. 视图模型契约（View-model contract）—— 草案（D9）
+
+- 呈现层**只消费视图模型**，不直接读存储域；域布局/存储 schema 变更不影响 UI。
+- 视图 schema（timeline-view / diff-view / audit-view / evidence-view）从
+  `dsh-audit-spec` 导出（M0），消费者禁止同构重声明。
+- GET 端点返回视图模型 JSON；`dsh-audit-ui` 组件接收视图模型作 props。
+- 数据校验失败 → 显式降级/报错（M5），不做数据猜测。
+- 生态插件按同一视图模型复用基座 UI（D9 复用保证；属于"对生态的提案"）。

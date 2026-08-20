@@ -44,6 +44,7 @@ packages/
 | `dsh-checkpoint-producer`（规划） | 耐久变更前快照 + 哈希链 + 保留策略 | 自有域 `cdp-snapshots` + 自有目录 |
 | `dsh-audit-ledger`（规划，D5 待拍板） | 审计事件聚合记录 | 自有域 `audit` |
 | `dsh-checkpoint-timeline` / `rollback` / `dsh-trace` / `dsh-evidence-export` / `dsh-guard-hints`（规划） | 消费侧拆分（从 dsh-checkpoint-diff 迁移） | 仅回滚写工作区 |
+| `dsh-audit-ui`（规划，D9） | 呈现组件（时间线/diff/审计视图/导出预览），只消费 spec 视图模型，不读存储域 | 无 |
 
 ## 状态
 
@@ -51,7 +52,9 @@ packages/
 cdp-snapshots / audit / events 为草案 schema）+ common 包（workspace / labels /
 diff-engine / pathguard / hash 迁移完成）。决策记录见
 [docs/bundle-foundation-design.md](docs/bundle-foundation-design.md)（D1 命名
-`dsh-audit-foundation`、D2 monorepo、D3 diff 轻维护 + 复用）。
+`dsh-audit-foundation`、D2 monorepo、D3 diff 轻维护 + 复用；方向确认已拍板：
+D4 不做门禁、D5 ledger 首期基础范围、D6 签名不承诺、D7 SARIF 留给生态、
+D9 UI 与数据分离 + 可复用 UI；D8 GitHub 建仓待办）。
 
 ## 开发
 

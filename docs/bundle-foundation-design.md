@@ -3,8 +3,15 @@
 > **来源**：dsh-checkpoint-diff/docs/bundle-foundation-design.md（2026-08 迁入本
 > 仓库 docs/，作为建库决策记录；旧仓库副本保留不动）。
 
-> **状态**：草案 v0.3。已拍板：**D1（`dsh-audit-foundation`，理念名 Trust Anchor）**、
-> **D2（monorepo）**、**D3（diff 轻维护 + 代码复用）**；待拍板：D4–D8。前置推论已读：`docs/roadmap-tasks.md`（任务书/T1–T20）、
+> **状态**：草案 v0.4。已拍板：**D1（`dsh-audit-foundation`，理念名 Trust Anchor）**、
+> **D2（monorepo）**、**D3（diff 轻维护 + 代码复用）**、**D4（不做门禁）**、
+> **D5（audit-ledger 首期做，基础范围）**、**D6（签名不承诺，接口位预留）**、
+> **D7（SARIF 留给其他插件）**、**D9（UI 与数据分离：视图模型契约 + 可复用 UI）**；
+> 待拍板：D8（GitHub 建仓/归属，用户操作）。方向确认（用户 2026-08 指示）：
+> ① 项目本体是**生态标准**（接口规范 + 数据存储格式），统一上下游；② 参照
+> **当前主流审计实现方案**，仅做基础功能、设计边界清晰的组件，可选扩展留给其他插件；
+> ③ 呈现层 **UI 与数据分离**，UI 接口暴露，其他插件可用相同数据结构复用 UI（见 §9）。
+> 前置推论已读：`docs/roadmap-tasks.md`（任务书/T1–T20）、
 > `docs/3-traceability-vs-audit.md`（方向裁决：溯源 vs 审计三层）、
 > `docs/decoupling-design.md`（Phase A/B 详案）、`docs/contract.md`（消费侧契约）。
 > 本文按用户 2026-08 最新指示修正两处旧前提：
@@ -132,7 +139,7 @@ trust anchor 的撞名误会，评估见 §8 D1）。
 | **证据** | 变更前快照、轨迹（会话日志）、审计事件成对记录 | 快照（git 对象/copy 目录）、`session.jsonl.zstd`、checkpoint/* 事件 | 存储域 + 快照目录布局 + 事件类型 | **rewind（可选）/ 基座生产者（自建）** + harness |
 | **存储** | 记录落盘：域（sqlite/json）、快照目录、追加式日志 | checkpoints / cdp-snapshots / audit 域 | `ctx.storageDomain`（已有）+ 域 spec（自建导出） | 基座生产者 + harness storage |
 | **查询** | 时间线提取、多源合并、轨迹重放、session 查询 | 时间线节点、重放内容 | `sessionQuery`（已有）、时间线 API | 基座消费者 + session-query |
-| **呈现** | GUI 面板、命令面、HTTP API | 视图数据 | webServer JSON API（GET 门禁） | 基座消费者 |
+| **呈现** | GUI 面板、命令面、HTTP API | **视图模型**（spec 导出，UI 不读存储域，D9） | 视图模型契约 + GET 端点（webServer）+ `dsh-audit-ui` 组件 | 基座消费者 + spec |
 | **响应** | 回滚（预览→应用→撤销）、fork、清理 | 工作区文件、undo 内存态 | rollback/rollback-undo 端点 | 基座消费者（唯一写路径） |
 | **审计消费** | 证据导出（JSON/MD/SARIF）、可验证哈希、判定徽标、报告/热力图 | 导出产物、哈希、allow/deny/waived | 导出端点 + 判定数据消费接口（预留） | 基座（导出）+ 生态（判定源） |
 
@@ -172,6 +179,7 @@ session-query），**基座不重复造这些轮子**；基座的独有位是**�
 | F18 | 护栏（敏感路径触碰等） | 提示/标记 | 需要 | 复用 `tools/execute` 监听（guard 先例：repeat-tool-reminder 的 additionalContexts 模式） | 护栏提示插件 | 新提案 |
 | F19 | 审计策略（记录什么/留多久） | 策略配置 | 需要 | config schema + 策略事件（对齐 `permission/preset` 模式） | 审计记录插件 | 新提案 |
 | F20 | 会话标题/血缘 | 标题、fork 分支 | 已有 | `sessionQuery.readTitle/traceSession`（可选服务，getter 现取） | 消费者 | 已实现 |
+| F21 | **视图模型契约 + 可复用 UI** | timeline-view / diff-view / audit-view / evidence-view；UI 组件包 | **需要（自建）** | 视图 schema 从 spec 导出（M0）；`dsh-audit-ui` 只消费视图模型、不读存储域（D9） | 呈现层 + spec | 已拍板（D9） |
 
 ---
 
@@ -221,7 +229,8 @@ producer          ledger          timeline           rollback          export
 | `dsh-trace` | 轨迹重放（时间线/区间 diff/回溯） | 无 | `sessionQuery`、zstd 直读兜底 | 现有（拆分） |
 | `dsh-evidence-export` | 证据导出（JSON/MD/SARIF?）+ 可验证哈希 | 无 | `webServer` | T5–T7 |
 | `dsh-guard-hints`（新） | 异常变更/敏感路径**提示**（只读，非门禁） | 无 | `tools/*` 监听（additionalContexts 模式） | T10/F18 |
-| `spec/`（非插件） | MDP 文档 + 域 schema + 事件 schema + 契约 + zod 校验器导出 | 无 | 零 DSH 依赖（纯 zod） | T1–T3/T13 |
+| `dsh-audit-ui`（新） | 呈现组件（时间线/diff/审计视图/导出预览），**只消费 spec 视图模型**（D9） | 无 | spec 视图 schema（不读存储域） | D9 |
+| `spec/`（非插件） | MDP 文档 + 域 schema + 事件 schema + **视图模型 schema** + 契约 + zod 校验器导出 | 无 | 零 DSH 依赖（纯 zod） | T1–T3/T13 |
 
 **拆分原则**（为什么这样拆）：每个包可独立安装、独立安全模型（写路径表一目了然）、
 独立版本线；消费者三包（timeline/rollback/trace）内部模块现成（`lib/` 已是纯函数分层），
@@ -251,6 +260,9 @@ diff 仓库**继续维护**（0.5.x 补丁线：bug 修复与安全补丁，有�
 
 **对生态有利的第一性**：生态缺的不是更多功能，而是**可对齐的接口**。基座把接口钉死、
 导出、免费提供校验器——这就是"少接口/多接口/错接口"通病的解药。
+**方向确认（用户 2026-08）**：项目本体是**生态标准**（接口规范 + 数据存储格式），
+统一上下游；参照当前主流审计实现方案（追加式记录 + 哈希链 + 可查询可导出），
+仅做基础功能、边界清晰，可选扩展（门禁/签名/SARIF/增强可视化）留给其他插件。
 
 ---
 
@@ -276,13 +288,32 @@ diff 仓库**继续维护**（0.5.x 补丁线：bug 修复与安全补丁，有�
 | D1 | 新仓库命名 | **`dsh-audit-foundation`** ✅ 已拍板（语义最准、零术语冲突；理念名 **Trust Anchor** 仅用于文档定位语，不进入包名——trust anchor 是 RFC 6024 / X.509 的 PKI 标准术语，作包名会误导安全/GRC 受众） | 已评估：`dsh-security-foundation` / `dsh-cornerstone` / `dsh-baseline` / trust-anchor 变体（均不选） |
 | D2 | 仓库形态 | **monorepo**（packages/ + spec/） ✅ 已拍板 | — |
 | D3 | 现有 diff 仓库去向 | **轻维护 + 代码复用** ✅ 已拍板：0.5.x 补丁线继续（bug/安全补丁，有人用就投入时间）；`lib/` 纯函数层迁入新仓对应包（复用不复制，迁出后旧仓不再演进该模块） | 冻结 / 薄壳转发（不选） |
-| D4 | 审计B（门禁/策略执行）做不做 | **不做门禁**（harness approval/sandbox 已是门；护栏只做提示 F18）——"不担心重复"不等于"值得做" | 做最小门禁（违背 M1：与 harness 职责重叠） |
-| D5 | `dsh-audit-ledger`（审计域）是否首期做 | **首期做**（审计A 是基座核心承诺；生态散装实现不达标） | 二期（先 producer+consumer） |
-| D6 | 签名/防篡改 | 仍不承诺（密钥管理未定，M7 只到哈希链） | 预留接口位 |
-| D7 | SARIF 导出 | 先做 JSON+MD，SARIF 写受众判断决策记录（T5 立场不变） | 首期全做 |
-| D8 | 命名空间归属 | tmpdot 名下新仓库（身份规则沿用 AGENTS.md #4） | 新组织 |
+| D4 | 审计B（门禁/策略执行）做不做 | **不做门禁** ✅ 已拍板（harness approval/sandbox 已是门；护栏只做提示 F18；方向确认②：仅基础功能，扩展留给生态） | 做最小门禁（违背 M1：与 harness 职责重叠） |
+| D5 | `dsh-audit-ledger`（审计域）是否首期做 | **首期做** ✅ 已拍板（审计A 是基座核心承诺；生态散装实现不达标）。**基础范围**：成对事件聚合 + 哈希链 + 保留策略；高级分析/聚合报表留给生态 | 二期（先 producer+consumer） |
+| D6 | 签名/防篡改 | **不承诺** ✅ 已拍板（密钥管理未定，M7 只到哈希链；签名留给生态插件，接口位预留） | 预留接口位 |
+| D7 | SARIF 导出 | **首期只 JSON+MD** ✅ 已拍板（方向确认②：可选扩展留给其他插件，SARIF 不再写受众判断记录） | 首期全做 |
+| D8 | 命名空间归属 | tmpdot 名下新仓库（身份规则沿用 AGENTS.md #4）——**待用户 GitHub 建仓** | 新组织 |
+| D9 | 呈现层：UI 与数据分离 | **分离 + 暴露 UI 接口** ✅ 已拍板（方向确认③）：视图模型 schema 进 spec 包；`dsh-audit-ui` 组件只消费视图模型；其他插件同数据结构可复用 UI（详见 §9） | UI 与数据耦合（不选：生态无法复用） |
 
 ---
+
+## 9. 呈现层决策（D9 已拍板：UI 与数据分离，UI 接口可复用）
+
+**决策**：呈现层拆成两层——**视图模型（数据契约）** 与 **UI 组件（视图）**，各自独立
+发布；UI **只消费视图模型，绝不直接读存储域**。视图模型属于 spec（项目本体是接口规范
+与数据存储格式，UI 是附带的参考实现）。
+
+- **视图模型契约（view schemas，进 spec 包）**：`timeline-view`（时间线节点/徽标）、
+  `diff-view`（逐文件行级 diff）、`audit-view`（审计记录）、`evidence-view`（导出预览）；
+  zod 校验器从 `dsh-audit-spec` 导出（M0：禁止同构重声明）。
+- **数据流单向**：存储域 → 查询/聚合（common 纯函数）→ 视图模型（JSON）→
+  GET 端点 / slot props → UI 组件。域布局变更不影响 UI，反之亦然。
+- **UI 包 `dsh-audit-ui`（规划）**：时间线 / diff / 审计视图 / 导出预览等客户端组件；
+  只接收视图模型作 props；零写路径；独立版本线；README 标注每个组件的视图模型输入。
+- **复用规则（M3 落地）**：生态插件持有同构数据（自有域或 harness 事件）时，自行派生
+  视图模型后即可挂载基座 UI；数据校验失败 → 显式降级/报错（M5），不做数据猜测。
+- **首期范围（方向确认②）**：只做基础视图（时间线 + diff + 审计记录 + 导出预览）；
+  热力图、画像等增强可视化按需后置，留给生态插件。
 
 ## 附：本文档与现有文档的关系
 

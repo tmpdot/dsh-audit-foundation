@@ -37,7 +37,8 @@
 
 ## 3. `audit` 域 —— 草案 v1（审计记录，规划中，D5 待拍板）
 
-- **状态**：草案（`dsh-audit-ledger` 是否首期实现待拍板；schema 先行）。
+- **状态**：草案（**D5 已拍板：首期实现，基础范围**——成对事件聚合 + 哈希链 +
+  保留策略；高级分析/聚合报表留给生态插件；schema 先行）。
 - **定位**：把 harness 关键事件聚合为追加式审计记录：`approval/asked` +
   `approval/decided` 成对、`permission/preset`、`tool/call` + `tool/result`、
   `checkpoint/*`、恢复（rollback）应用——**消费 harness 事件，不发明平行
@@ -57,3 +58,14 @@
 `approval/decided`、`permission/preset`、`checkpoint/*` 的 zod 校验。
 形状对齐 harness 会话事件（`session.jsonl.zstd` / `sessionQuery.readSession`）；
 容错超集——未知字段剥离，精确严格性属于 harness 生产者。
+
+## 5. 视图模型（view schemas）—— 草案（D9：UI 与数据分离）
+
+- **状态**：草案（呈现层规划中；视图 schema 先行，M0）。
+- **定位**：呈现层数据契约：`timeline-view`（时间线节点/徽标）、`diff-view`
+  （逐文件行级 diff）、`audit-view`（审计记录视图）、`evidence-view`（导出预览）。
+  **UI 组件只消费视图模型**（`dsh-audit-ui`，不直接读存储域）；其他插件按同一
+  视图模型喂数据即可复用同一套 UI（D9）。
+- **数据流单向**：存储域 → 查询/聚合（纯函数）→ 视图模型（JSON）→ GET 端点 /
+  slot props → UI 组件。
+- **校验器**：`src/views.mjs`（规划）从 `dsh-audit-spec` 导出（M0）。
