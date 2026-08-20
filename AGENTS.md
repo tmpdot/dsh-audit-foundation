@@ -8,7 +8,9 @@
 DeepSeek Harness 生态的**安全与审计基座**（理念名 Trust Anchor）：规范包 +
 最小职责插件。规范锚点在 `spec/`（MDP / CONTRACT / DOMAINS + 纯 zod 校验器），
 插件在 `packages/`。设计决策记录在 `docs/bundle-foundation-design.md`
-（D1 命名 / D2 monorepo / D3 diff 轻维护+复用 已拍板；D4–D8 待拍板）。
+（D1 命名 / D2 monorepo / D3 diff 轻维护+复用 / D4–D7、D9 已拍板；D8 GitHub
+建仓待办）；关键技术选型登记在 `docs/technical-selections.md`（T1–T4 分层工作流，
+见 §10 规则）。
 
 ## 非协商条款
 
@@ -46,7 +48,8 @@ packages/common/     纯函数库 dsh-audit-common（workspace / labels / diff-e
                      pathguard / hash —— 全部零 DSH 依赖，CI 可测）
 packages/*           插件包（规划：producer / audit-ledger / timeline / rollback /
                      trace / evidence-export / guard-hints）
-docs/                设计决策（bundle-foundation-design.md 等）
+docs/                设计决策（bundle-foundation-design.md）+ 技术选型登记表
+                     （technical-selections.md，T1–T4 工作流）
 ```
 
 ## 开发循环
@@ -61,6 +64,10 @@ pnpm test:common      # 仅公共库
 - 纯函数与 schema 必须零 DSH 依赖（CI 无法解析 @deepseek-ai 包）——这是
   spec/common 两包可测试的前提。
 - 每条降级路径都要有测试（服务缺席、记录缺失、介质损坏、哈希不匹配）。
+- 技术选型一律登记 `docs/technical-selections.md`：T1 正式标准 / T2 事实标准
+  直接执行（先 web_search 核实原文留链接）；T3 行业惯例执行+记录；T4 无标准则
+  收集生态相似插件 + 行业方案、记录对标立场后执行，进"待决策"清单；影响对外
+  契约形状（域 schema / 视图模型 / 端点）的 T4 在契约冻结（1.0.0）前必须拍板。
 - 发布：每包独立 `npm publish`（prepack 自动跑测试）→ profile 组合安装 →
   tag + `dsh-plugin` dist-tag；host 侧改动需 harness 重启，纯客户端改动刷新页面。
 
