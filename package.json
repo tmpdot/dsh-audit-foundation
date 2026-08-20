@@ -1,0 +1,15 @@
+{
+  "name": "dsh-audit-foundation",
+  "private": true,
+  "description": "Trust Anchor — the security & audit foundation for DeepSeek Harness: minimum design principles (MDP), storage-domain specs, and minimal-responsibility plugins",
+  "type": "module",
+  "engines": {
+    "node": "^22.19.0 || >=24.0.0"
+  },
+  "scripts": {
+    "test": "pnpm -r test",
+    "test:spec": "pnpm --filter dsh-audit-spec test",
+    "test:common": "pnpm --filter dsh-audit-common test"
+  },
+  "license": "Apache-2.0"
+}

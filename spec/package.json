@@ -1,0 +1,39 @@
+{
+  "name": "dsh-audit-spec",
+  "version": "0.1.0",
+  "description": "Trust Anchor spec package: minimum design principles (MDP), storage-domain specs (checkpoints v1/v2 consumer-tolerant, cdp-snapshots v1 draft, audit v1 draft), key session-event schemas, and the foundation contract — all exported as pure zod validators (zero DSH deps)",
+  "type": "module",
+  "main": "./src/index.mjs",
+  "exports": {
+    ".": "./src/index.mjs",
+    "./domains": "./src/index.mjs",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "src",
+    "MDP.md",
+    "CONTRACT.md",
+    "DOMAINS.md",
+    "README.md"
+  ],
+  "dependencies": {
+    "zod": "^4.4.3"
+  },
+  "scripts": {
+    "test": "node --test-isolation=none --test \"test/**/*.test.mjs\""
+  },
+  "engines": {
+    "node": "^22.19.0 || >=24.0.0"
+  },
+  "keywords": [
+    "deepseek-harness",
+    "dsh",
+    "dsh-plugin",
+    "spec",
+    "audit",
+    "security",
+    "checkpoint",
+    "cordis-plugin"
+  ],
+  "license": "Apache-2.0"
+}

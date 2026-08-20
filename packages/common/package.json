@@ -1,0 +1,30 @@
+{
+  "name": "dsh-audit-common",
+  "version": "0.1.0",
+  "description": "Trust Anchor shared pure-function library (zero DSH deps): workspace keys & snapshot layout, intent labels, line diff engine, write-path guards, content hashing",
+  "type": "module",
+  "main": "./src/index.mjs",
+  "exports": {
+    ".": "./src/index.mjs",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "src"
+  ],
+  "scripts": {
+    "test": "node --test-isolation=none --test \"test/**/*.test.mjs\""
+  },
+  "engines": {
+    "node": "^22.19.0 || >=24.0.0"
+  },
+  "keywords": [
+    "deepseek-harness",
+    "dsh",
+    "dsh-plugin",
+    "audit",
+    "security",
+    "diff",
+    "checkpoint"
+  ],
+  "license": "Apache-2.0"
+}
