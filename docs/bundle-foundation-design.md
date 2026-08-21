@@ -349,8 +349,8 @@ full workflow and rules; this is a summary):
 - **Reminder**: at the end of a round involving a selection, list "pending your decision"; before committing, check the register and name new T4 items
   in the commit message; keep the pending-decision list in sync (register §2 is the authoritative source).
 
-Current T4 pending decisions: snapshot carrier (T4-1), schema validator (T4-2), audit field naming (T4-3),
-view model shape (T4-4) — see register §2 for details.
+Current T4 pending decisions: schema validator (T4-2) — see register §2 for details
+(T4-1 / T4-3 / T4-4 decided on 2026-08-21).
 
 ## Appendix: relationship of this document to existing documents
 

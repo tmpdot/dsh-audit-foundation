@@ -74,8 +74,9 @@
 
 ## 5. 视图模型（view schemas）—— 草案 v1（D9：UI 与数据分离）
 
-- **状态**：草案 v1（schema 已落地 `src/views.mjs`，2026-08；UI 组件
-  `dsh-audit-ui` 规划中）。
+- **状态**：草案 v2（schema 已落地 `src/views.mjs`，2026-08；2026-08-21
+  T4-4 拍板：排除 dsh-checkpoint-diff 词汇，字段按直观性 + UI 渲染性能
+  重设计；UI 组件 `dsh-audit-ui` 规划中）。
 - **定位**：呈现层数据契约：`timeline-view`（时间线节点/徽标）、`diff-view`
   （逐文件行级 diff）、`audit-view`（审计记录视图）、`evidence-view`（导出预览）。
   **UI 组件只消费视图模型**（不直接读存储域）；其他插件按同一视图模型喂数据
@@ -85,8 +86,11 @@
 - **词汇对齐（M0/M8）**：来源/层级/类型/动作枚举沿用域草案（cdp-snapshots /
   checkpoints v2 / audit / events）；audit 视图直接复用 audit 域词汇导出，
   不重声明。
-- **对标立场（见 docs/technical-selections.md T4-4）**：生态对齐
-  dsh-checkpoint-diff 时间线面板词汇（degraded / branchId / A-M-D /
-  truncated），为其超集；行业无统一视图契约（Kibana / Sentry / Grafana
-  均产品内契约；OCSF / ECS 为存储/传输层 schema）——不采用行业产品 JSON。
+- **对标立场（见 docs/technical-selections.md T4-4，2026-08-21 已拍板）**：
+  **排除 dsh-checkpoint-diff 面板词汇**（degraded / branchId / A-M-D /
+  markers——单一实现者的历史词汇，非生态标准，不得成为规范基线）；字段按
+  **直观性 + UI 渲染性能**独立设计（平铺自包含记录、预计算统计、截断/总数
+  前置、稳定字符串 id、epoch 毫秒数值、预派生 title/summary）；行业无统一
+  视图契约（Kibana / Sentry / Grafana 均产品内契约；OCSF / ECS 为存储/
+  传输层 schema）——不采用行业产品 JSON。
 - **校验器**：`src/views.mjs` 从 `dsh-audit-spec` 导出（M0）。

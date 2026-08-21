@@ -7,10 +7,17 @@
 
 ### Added
 
-- `views.mjs`（草案 v1，D9）：视图模型 schema——timeline-node（三源合并 +
-  degraded/notes 降级标注 + badges 判定徽标预留）、diff-view（A/M/D +
-  hunks + truncated）、audit-view（复用 audit 域词汇，M0）、evidence-view
-  （JSON/MD，D7 范围）。对标立场见 docs/technical-selections.md T4-4。
+- `views.mjs`（草案 v2，D9；2026-08-21 T4-4 拍板）：视图模型 schema——timeline-node
+  （三源合并 + degraded/notes 降级标注 + badges 判定徽标预留）、diff-view
+  （path + status added/modified/deleted + hunks + truncated）、audit-view
+  （复用 audit 域词汇，M0）、evidence-view（JSON/MD，D7 范围）。**排除
+  dsh-checkpoint-diff 面板词汇**（branchId / A-M-D 等），字段按直观性 +
+  UI 渲染性能重设计（平铺自包含、预计算统计、截断/总数前置、稳定 id、
+  epoch 毫秒、预派生 title/summary）。对标立场见 docs/technical-selections.md T4-4。
+- **T4 拍板记录（2026-08-21）**：T4-1 快照载体（copy + manifest + sha256）用户同意；
+  T4-3 审计字段命名当前保留 eventType 原文（"一切皆插件"的代价），发展方向为
+  公开的插件操作 → 数字映射（社区凝聚力 / 官方背书）；T4-4 视图模型形状如上。
+  详见 docs/technical-selections.md §2（当前待决策仅剩 T4-2）。
 - `cdp-snapshots.mjs`：新增 manifest.json 自描述 schema（CDP_MANIFEST_VERSION /
   ref / tree / files[{rel,size,hash}] / prevHash / kind；tree = contentHash(files)）。
 - `audit.mjs`：新增审计策略 schema `auditPolicySchema`（F19——enabled /

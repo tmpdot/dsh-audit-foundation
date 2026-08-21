@@ -8,6 +8,8 @@ importers:
 
   .: {}
 
+  packages/audit-ledger: {}
+
   packages/common: {}
 
   spec:

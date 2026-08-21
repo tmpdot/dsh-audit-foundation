@@ -1,5 +1,6 @@
 // test/views.test.mjs — 视图模型 schema 单测（D9 草案 v1）。
 // 锁语义：容错超集（未知字段剥离）、词汇对齐域草案（M0/M8）、
+// 直观全词枚举（path/status/type，T4-4 裁决：排除 dsh-checkpoint-diff 词汇）、
 // 降级标注与可验证性展示字段（M5/M7）。
 
 import { test } from 'node:test'
@@ -23,6 +24,7 @@ function node(partial = {}) {
     time: 1000,
     source: 'cdp',
     tier: 'durable',
+    title: 'auto snapshot before edit',
     ...partial,
   }
 }
@@ -30,11 +32,14 @@ function node(partial = {}) {
 test('timeline-node: accepts a well-formed cdp node and strips unknown fields', () => {
   const parsed = timelineNodeSchema.parse(node({
     kind: 'mutation', triggerTool: 'edit', files: 2, bytes: 200, ref: H64,
-    label: 'mutation before edit', branchId: 'fork-1', extra: { junk: true },
+    label: 'mutation before edit', summary: '2 files changed',
+    extra: { junk: true },
   }))
   assert.equal(parsed.source, 'cdp')
   assert.equal(parsed.tier, 'durable')
-  assert.equal(parsed.branchId, 'fork-1')
+  assert.equal(parsed.title, 'auto snapshot before edit')
+  assert.equal(parsed.files, 2)
+  assert.equal('branchId' in parsed, false) // 不采纳旧仓词汇
   assert.equal('extra' in parsed, false) // 容错超集：未知字段剥离
 })
 
@@ -58,39 +63,41 @@ test('timeline-node: validates source/tier/kind vocabulary and ref shape', () =>
   assert.throws(() => timelineNodeSchema.parse(node({ kind: 'bogus' })))
   assert.throws(() => timelineNodeSchema.parse(node({ ref: 'short' })))
   assert.throws(() => timelineNodeSchema.parse(node({ seq: -1 })))
+  assert.throws(() => timelineNodeSchema.parse(node({ title: '' }))) // 预派生标题必填
 })
 
 function diffFile(partial = {}) {
   return {
-    rel: 'a.txt',
-    action: 'M',
+    path: 'a.txt',
+    status: 'modified',
     stats: { added: 1, deleted: 1 },
     ...partial,
   }
 }
 
-test('diff-view: accepts files with A/M/D actions and hunk line types', () => {
+test('diff-view: accepts files with added/modified/deleted statuses and line types', () => {
   const parsed = diffViewSchema.parse({
     fromRef: 'abc123', toRef: 'latest',
     files: [
-      diffFile({ action: 'A', stats: { added: 3, deleted: 0, unchanged: 0 } }),
+      diffFile({ status: 'added', stats: { added: 3, deleted: 0, unchanged: 0 } }),
       diffFile({
-        rel: 'b.txt', action: 'M',
+        path: 'b.txt', status: 'modified',
         hunks: [{ oldStart: 1, oldLines: 2, newStart: 1, newLines: 3,
-          lines: [{ t: 'ctx', text: 'x' }, { t: 'del', text: 'y' }, { t: 'add', text: 'z' }] }],
+          lines: [{ type: 'context', text: 'x' }, { type: 'deleted', text: 'y' }, { type: 'added', text: 'z' }] }],
       }),
-      diffFile({ rel: 'c.txt', action: 'D', stats: { added: 0, deleted: 5 } }),
+      diffFile({ path: 'c.txt', status: 'deleted', stats: { added: 0, deleted: 5 } }),
     ],
     summary: { added: 3, deleted: 6, files: 3 },
   })
-  assert.equal(parsed.files[1].hunks[0].lines[2].t, 'add')
+  assert.equal(parsed.files[1].hunks[0].lines[2].type, 'added')
+  assert.equal(parsed.files[1].status, 'modified')
   assert.equal(parsed.summary.files, 3)
 })
 
-test('diff-view: rejects unknown actions, bad hunk headers and bad line types', () => {
-  assert.throws(() => diffViewSchema.parse({ fromRef: 'a', toRef: 'b', files: [diffFile({ action: 'X' })], summary: {} }))
-  assert.throws(() => diffFileSchema.parse(diffFile({ action: 'M', hunks: [{ oldStart: 0, oldLines: 0, newStart: 1, newLines: 1, lines: [] }] })))
-  assert.throws(() => diffFileSchema.parse(diffFile({ action: 'M', hunks: [{ oldStart: 1, oldLines: 1, newStart: 1, newLines: 1, lines: [{ t: 'bad', text: 'x' }] }] })))
+test('diff-view: rejects unknown statuses, bad hunk headers and bad line types', () => {
+  assert.throws(() => diffViewSchema.parse({ fromRef: 'a', toRef: 'b', files: [diffFile({ status: 'X' })], summary: {} }))
+  assert.throws(() => diffFileSchema.parse(diffFile({ status: 'modified', hunks: [{ oldStart: 0, oldLines: 0, newStart: 1, newLines: 1, lines: [] }] })))
+  assert.throws(() => diffFileSchema.parse(diffFile({ status: 'modified', hunks: [{ oldStart: 1, oldLines: 1, newStart: 1, newLines: 1, lines: [{ type: 'bad', text: 'x' }] }] })))
 })
 
 test('audit-view: record reuses audit domain vocabulary (M0, no re-declaration)', () => {

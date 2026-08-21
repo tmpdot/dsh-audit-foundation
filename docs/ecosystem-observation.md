@@ -90,6 +90,7 @@ technical-selections §4) — they are inputs to judgment, never auto-promoted t
 | 2026-08 | 30+ audit/security plugins | ad-hoc output formats | each plugin defines its own report/verdict shape → data silos | shared audit-domain schema | M0 no-isomorphic-redeclaration |
 | 2026-08 | audit/security plugin category | permission profile / verdict JSON | no permission-declaration step at install; `dsh plugin add` grants full permissions | shared permission-profile event format | M4/M8 consume harness events |
 | 2026-08 | storage-class plugins generally | quota/eviction undocumented | data-disappearance semantics discovered post-hoc | tier/provenance annotation | M9/M5 explicit semantics |
+| 2026-08 | dsh-checkpoint-diff timeline panel vocabulary | reused as the view-model draft baseline (branchId / A-M-D / markers) | single implementer's legacy vocabulary nearly became the spec baseline | view contract redesigned independently (intuitive + render-performance, T4-4 decided 2026-08-21); single-implementer vocabulary is not a standard | M0/M3 interface-shape authority |
 
 ---
 

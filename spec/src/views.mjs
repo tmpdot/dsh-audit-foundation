@@ -4,12 +4,15 @@
 // 视图模型生产者（M2）。词汇**对齐域草案**（cdp-snapshots / checkpoints v2 /
 // audit / events），不发明平行语义（M8）；M0：消费方从本包导入，禁止同构重声明。
 //
-// 对标记录（见 docs/technical-selections.md T4-4）：
-// - 生态：dsh-checkpoint-diff 时间线面板词汇（records[].id/degraded/branchId、
-//   files[].path+status A/M/D、truncated/totalFiles、markers）——本草案为其超集；
-// - 行业：无统一视图契约（Kibana/Sentry/Grafana 均产品内契约；OCSF/ECS 是
-//   存储/传输层 schema，非视图契约）——**不采用**行业产品 JSON，字段命名沿用
-//   本仓库域词汇（camelCase）。
+// 渲染性能导向（用户裁决 2026-08-21，见 docs/technical-selections.md T4-4）：
+// - 平铺自包含：每条记录/文件自含渲染所需字段，UI 不做跨记录聚合或关联查询；
+// - 预计算统计：files/bytes/added/deleted 等直接给出，UI 不遍历二次求和；
+// - 截断/总数前置：truncated/total* 提前暴露，支持分页与虚拟滚动；
+// - 稳定 id：字符串 id 稳定唯一，可直接作虚拟列表 key；
+// - 时间数值化：epoch 毫秒数值，排序比较零转换。
+// 不采纳 dsh-checkpoint-diff 面板词汇（branchId / A/M/D / markers 等）——那是
+// 单一实现者（自家旧仓）的历史词汇，不是生态标准；视图契约按直观性与渲染
+// 性能独立设计，生态插件以域 schema + 本视图契约为准（M0）。
 
 import { z } from 'zod'
 import { AUDIT_CATEGORIES, AUDIT_SOURCES } from './audit.mjs'
@@ -22,26 +25,30 @@ export const VIEW_SOURCES = ['cdp', 'rewind', 'trace']
 export const VIEW_TIERS = ['durable', 'temporary']
 // 快照来源分类，词汇对齐 checkpoints v2 / cdp-snapshots v1
 export const VIEW_KINDS = ['manual', 'auto', 'guard', 'mutation']
-// 文件变更动作，对齐 CONTRACT §3 的 A/M/D 语义
-export const VIEW_ACTIONS = ['A', 'M', 'D']
+// 文件变更状态（直观全词，替代旧仓 A/M/D 单字符词汇）
+export const VIEW_STATUSES = ['added', 'modified', 'deleted']
+// diff 行类型（直观全词；context=上下文，deleted=删除，added=新增）
+export const VIEW_LINE_TYPES = ['context', 'deleted', 'added']
 // 导出格式（D7：首期 JSON+MD；SARIF 留给生态插件）
 export const EVIDENCE_FORMATS = ['json', 'markdown']
 
 // 时间线节点视图（F11/F16）：三源合并后的单一呈现形状；degraded/notes 为
 // M5 降级标注；badges 为判定徽标预留位（F16：allow/deny/waived，生态对齐后消费）。
+// title/summary 为预派生展示字段：UI 直接渲染，不做二次计算（渲染性能导向）。
 export const timelineNodeSchema = z.object({
-  id: z.string().min(1), // 源记录 id
+  id: z.string().min(1), // 稳定唯一 id（虚拟列表 key）
   seq: z.number().int().nonnegative(), // 源内序号
-  time: z.number().int().nonnegative(), // epoch 毫秒
+  time: z.number().int().nonnegative(), // epoch 毫秒（数值比较零转换）
   source: z.enum(VIEW_SOURCES), // 来源（M9 标注）
   tier: z.enum(VIEW_TIERS), // 持久性层级（M9 标注）
   kind: z.enum(VIEW_KINDS).optional(), // 对齐 checkpoints v2 词汇
+  title: z.string().min(1), // 预派生标题（如 "auto snapshot before edit"）
+  summary: z.string().optional(), // 预派生摘要（可空）
   triggerTool: z.string().min(1).optional(),
-  files: z.number().int().nonnegative().optional(),
-  bytes: z.number().int().nonnegative().optional(),
+  files: z.number().int().nonnegative().optional(), // 预计算：变更文件数
+  bytes: z.number().int().nonnegative().optional(), // 预计算：变更字节数
   ref: z.string().regex(H64_RE).optional(), // 内容寻址（cdp 源）
   label: z.string().optional(), // 意图标签（common/labels.mjs 产出）
-  branchId: z.string().optional(), // fork 血缘（对齐 diff 面板 branchFilter）
   badges: z.array(z.object({
     text: z.string().min(1),
     kind: z.string().min(1), // 生态对齐后限定词汇（如 allow/deny/waived）
@@ -50,9 +57,10 @@ export const timelineNodeSchema = z.object({
   notes: z.array(z.string()).optional(), // 降级/错误归因点名
 })
 
-// 行级 diff：行类型对齐 common/diff-engine（LCS）输出与 unified diff 语义。
+// 行级 diff：行类型直观全词（context/deleted/added），对齐 common/diff-engine
+// （LCS）输出与 unified diff 语义。
 export const diffHunkLineSchema = z.object({
-  t: z.enum(['ctx', 'del', 'add']),
+  type: z.enum(VIEW_LINE_TYPES),
   text: z.string(),
 })
 
@@ -65,17 +73,18 @@ export const diffHunkSchema = z.object({
 })
 
 export const diffFileSchema = z.object({
-  rel: z.string().min(1), // 相对路径
-  action: z.enum(VIEW_ACTIONS), // A/M/D（对齐 CONTRACT §3）
+  path: z.string().min(1), // 相对路径
+  status: z.enum(VIEW_STATUSES), // added/modified/deleted（直观全词）
   stats: z.object({
     added: z.number().int().nonnegative(),
     deleted: z.number().int().nonnegative(),
     unchanged: z.number().int().nonnegative().optional(),
   }),
-  hunks: z.array(diffHunkSchema).optional(), // 行级变化；仅 M 文件通常携带
+  hunks: z.array(diffHunkSchema).optional(), // 行级变化；仅 modified 文件通常携带
 })
 
-// diff 视图（F12）：from/to 寻址沿用 CONTRACT §1.3（id 前缀或 'latest'）。
+// diff 视图（F12）：from/to 寻址沿用 CONTRACT §1.3（id 前缀或 'latest'）；
+// summary 为预计算汇总（UI 不遍历 files 二次求和，虚拟列表可直读表头）。
 export const diffViewSchema = z.object({
   fromRef: z.string().min(1),
   toRef: z.string().min(1),
@@ -84,13 +93,15 @@ export const diffViewSchema = z.object({
     added: z.number().int().nonnegative(),
     deleted: z.number().int().nonnegative(),
     files: z.number().int().nonnegative(),
-    truncated: z.boolean().optional(), // 对齐 diff 面板截断语义
-    totalFiles: z.number().int().nonnegative().optional(),
+    truncated: z.boolean().optional(), // 截断标记（分页/虚拟滚动）
+    totalFiles: z.number().int().nonnegative().optional(), // 截断前总数
   }),
 })
 
 // 审计记录视图（F7/F8）：category/source 词汇**复用 audit 域导出**（M0，
-// 不重声明）；verified 为哈希链校验结果（M7："哈希 ≠ 密封"，仅展示校验状态）。
+// 不重声明）；eventType 为 harness 事件类型原文（T4-3：一切皆插件的代价，
+// 暂以原文存储，未来向公开映射演进）；verified 为哈希链校验结果
+// （M7："哈希 ≠ 密封"，仅展示校验状态）。
 export const auditViewRecordSchema = z.object({
   id: z.string().min(1),
   time: z.number().int().nonnegative(), // epoch 毫秒
