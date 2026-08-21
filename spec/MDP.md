@@ -44,14 +44,27 @@ or exposing interfaces unreasonably) violates at least one of M0–M4.
   ecosystem?"; any row that is not fully aligned must state "what was
   deviated from, what was protected" (stance column of the technical
   selections register) — **no implicit deviation**.
+  Every round involving ecosystem-facing decisions must also answer "what did
+  we observe, what did we revise, what did we protect" — the operating
+  mechanism is `docs/ecosystem-observation.md` (feedback loop + observation
+  log). Validation of ecosystem alignment is **two-layer**: **(compatibility
+  floor)** real plugins must be able to integrate — necessary, prevents
+  ivory-tower specs; **(quality ceiling)** the spec author holds design
+  authority, judging against MDP + industry benchmarking — a community shape
+  is a candidate, never the baseline. Core stance: **observe everything,
+  adopt nothing by default**.
 - **Violation**: reshaping harness event names into standard numbering to
   align with an industry standard (sacrificing the M8 vocabulary's original
   meaning); forcing consumers to migrate or re-declare isomorphic schemas for
-  "standards compliance".
+  "standards compliance"; following the most popular plugin's shape instead
+  of judging (letting incumbency decide the spec — the ailment MDP exists to
+  cure, M0–M4).
 - **Compliant**: T4-3 audit field classification "partially aligned with
   OCSF/ECS, eventType keeps the harness's original event name"; T4-1 snapshot
   carrier does not adopt git loose objects (gc-reclaim risk; data must not
-  disappear).
+  disappear); ecosystem-observation.md §2 two-layer validation — real-plugin
+  walk-throughs are the compatibility floor, promotion to the spec still
+  requires MDP judgment.
 
 ---
 

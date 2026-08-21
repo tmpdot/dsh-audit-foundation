@@ -1,6 +1,36 @@
+# dependencies / build artifacts
 node_modules/
 dist/
 *.tgz
 *.log
-.DS_Store
+coverage/
+*.tsbuildinfo
+
+# local collaboration file: HANDOFF.md is a per-developer local working note
+# (pending-decision sync for the current developer/agent). It is ignored on
+# purpose — never commit it. The authoritative pending-decision list lives in
+# docs/technical-selections.md §2 (register); sync it there, not in HANDOFF.
 HANDOFF.md
+
+# local AI agent memory: per-session work logs, never commit (project-level
+# .workbuddy/skills/ may be shared and is NOT ignored)
+.workbuddy/memory/
+
+# environment / secrets (AGENTS.md token hygiene — never commit credentials)
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# OS / editor artifacts
+.DS_Store
+Thumbs.db
+*.swp
+*~
+.idea/
+.vscode/
+
+# temp
+tmp/
+*.tmp

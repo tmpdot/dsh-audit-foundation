@@ -29,6 +29,16 @@ foundation pins down the interfaces, exports them from packages, and provides
 validators for free (M0) — the cure for the "did too much / did too little /
 exposed the wrong interface" disease.
 
+Ecosystem alignment is a **dynamic adjustment process, not a static assertion**
+(mechanism: [`docs/ecosystem-observation.md`](docs/ecosystem-observation.md)):
+each round we record what real plugins do and where they stumble (observation
+log), revise the spec semantics only, and validate two-layer — real-plugin
+integration is the **compatibility floor** (necessary), while design authority
+stays with the spec author, judged against MDP and industry benchmarking
+(**quality ceiling**). A community shape is "a scheme that happens to exist",
+never automatically the baseline: **observe everything, adopt nothing by
+default**.
+
 ## Positioning
 
 - **Spec anchor**: the Minimal Design Principles

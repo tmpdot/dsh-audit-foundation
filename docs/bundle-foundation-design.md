@@ -1,354 +1,359 @@
-# 安全与审计基座：组合包建库设计草案（2026-08）
+# Security & Audit Foundation: Composable-Package Library Design Draft (2026-08)
 
-> **来源**：dsh-checkpoint-diff/docs/bundle-foundation-design.md（2026-08 迁入本
-> 仓库 docs/，作为建库决策记录；旧仓库副本保留不动）。
+> **中文版（翻译）**：[bundle-foundation-design.zh-CN.md](bundle-foundation-design.zh-CN.md) ·
+> the English original is the source of truth.
 
-> **状态**：草案 v0.4。已拍板：**D1（`dsh-audit-foundation`，理念名 Trust Anchor）**、
-> **D2（monorepo）**、**D3（diff 轻维护 + 代码复用）**、**D4（不做门禁）**、
-> **D5（audit-ledger 首期做，基础范围）**、**D6（签名不承诺，接口位预留）**、
-> **D7（SARIF 留给其他插件）**、**D9（UI 与数据分离：视图模型契约 + 可复用 UI）**、
-> **技术选型工作流（T1–T4 分层，用户 2026-08-20 批准完整版，登记表
-> `docs/technical-selections.md`，见 §10）**；
-> 待拍板：D8（GitHub 建仓/归属，用户操作）。方向确认（用户 2026-08 指示）：
-> ① 项目本体是**生态标准**（接口规范 + 数据存储格式），统一上下游；② 参照
-> **当前主流审计实现方案**，仅做基础功能、设计边界清晰的组件，可选扩展留给其他插件；
-> ③ 呈现层 **UI 与数据分离**，UI 接口暴露，其他插件可用相同数据结构复用 UI（见 §9）；
-> ④ 理念校准（2026-08）：**生态优先，行业标准第二**——标准是手段、生态是目的；
->    采纳标准损害生态对齐时偏离并记录理由，"部分对齐"为默认立场（锚点：MDP
->    总纲 / technical-selections 规则 5 / README"理念"节）。
-> 前置推论已读：`docs/roadmap-tasks.md`（任务书/T1–T20）、
-> `docs/3-traceability-vs-audit.md`（方向裁决：溯源 vs 审计三层）、
-> `docs/decoupling-design.md`（Phase A/B 详案）、`docs/contract.md`（消费侧契约）。
-> 本文按用户 2026-08 最新指示修正两处旧前提：
-> **① 不再担心重复造轮子与功能覆盖**（生态"已占"不再是回避理由）；
-> **② 不与上游协商**（rewind/harness 协商通道不可用），改为**制定最小设计原则（MDP）让生态遵循**——
-> 现有插件"功能做得好，但多做了或少做了功能、少了接口、接口暴露不合理"的通病，
-> 靠规范 + 参考实现解决，不靠谈判。
+> **Source**: dsh-checkpoint-diff/docs/bundle-foundation-design.md (migrated into this
+> repository's docs/ in 2026-08 as the library-building decision record; the old repository copy is kept unchanged).
+
+> **Status**: Draft v0.4. Decided: **D1 (`dsh-audit-foundation`, concept name Trust Anchor)**,
+> **D2 (monorepo)**, **D3 (light maintenance of diff + code reuse)**, **D4 (no gate)**,
+> **D5 (audit-ledger in the first phase, baseline scope)**, **D6 (no signature commitment, interface slot reserved)**,
+> **D7 (SARIF left to other plugins)**, **D9 (UI and data separation: view model contract + reusable UI)**,
+> **technical-selections workflow (T1–T4 tiers, full version approved by the user on 2026-08-20; register
+> `docs/technical-selections.md`, see §10)**;
+> pending decision: D8 (GitHub repository creation/ownership, user action). Direction confirmation (user direction, 2026-08):
+> ① the project itself is an **ecosystem standard** (interface spec + data storage format), unifying upstream and downstream; ② follow
+> **current mainstream audit implementation approaches**: only basic features and clearly bounded components are built; optional extensions are left to other plugins;
+> ③ presentation layer: **UI and data separation**, UI interfaces exposed, other plugins can reuse the UI with the same data structures (see §9);
+> ④ philosophy calibration (2026-08): **ecosystem first, industry standards second** — standards are a means; the ecosystem is the end;
+>    deviate and record the rationale when adopting a standard harms ecosystem alignment; "partial alignment" is the default stance (anchors: MDP
+>    General Principle / technical-selections rule 5 / README "philosophy" section).
+> Prerequisite conclusions read: `docs/roadmap-tasks.md` (task book / T1–T20),
+> `docs/3-traceability-vs-audit.md` (direction ruling: traceability vs. audit, three layers),
+> `docs/decoupling-design.md` (Phase A/B details), `docs/contract.md` (consumer-side contract).
+> Per the user's latest 2026-08 direction, this document revises two old premises:
+> **① Not afraid to reinvent wheels or overlap features** (an ecosystem "already occupied" slot is no longer a reason to avoid);
+> **② No negotiation with upstream** (the rewind/harness negotiation channel is unavailable), replaced by **defining Minimal Design Principles (MDP) for the ecosystem to follow** —
+> the common ailment of existing plugins — "features implemented well, but doing too much or too little, missing interfaces, or exposing interfaces unreasonably" —
+> is solved by specs + a reference implementation, not by bargaining.
 
 ---
 
-## 0. 决策摘要：要不要新开项目
+## 0. Decision summary: whether to start a new project
 
-**结论：新开项目（独立仓库，monorepo 多包），以组合包为起点直接建"库"。**
+**Conclusion: start a new project (an independent repository, monorepo with multiple packages), building a "library" directly from composable packages.**
 
-组合包 = 自建生产者（审计记录层）+ 消费者（溯源呈现层）+ 规范包（spec）。它不是
-`dsh-checkpoint-diff` 的下一阶段，而是**安全与审计的独立基座**。理由：
+Composable packages = self-built producer (audit record layer) + consumer (traceability presentation layer) + spec package (spec). It is not
+the next stage of `dsh-checkpoint-diff`, but an **independent security & audit foundation**. Rationale:
 
-| # | 理由 | 说明 |
+| # | Rationale | Details |
 |---|---|---|
-| 1 | **写路径分离，安全模型单一** | 生产者写自有域（新写路径）与消费者"只读+回滚例外"是两种信任面。塞进 diff 仓库 = AGENTS.md #1 第二次扩展（decoupling-design §5 已提示需评审）。独立仓库让每个包的安全边界保持单一、可审计 |
-| 2 | **规范需要中立锚点** | MDP + 域 spec + 事件 schema + 契约是"标准库"身份，不属于任何单个插件的附属文档 |
-| 3 | **版本节奏独立** | diff 0.x 慢节奏（caret 锁 minor，每次 minor 要改 profile）。基座需要自己的版本线（spec 冻结才能谈 1.0.0） |
-| 4 | **生态发现** | 独立包名（`dsh-*` 前缀）+ `dsh-plugin` dist-tag + 插件市场（mydsh.dev / dsh-market 等 1500+ 插件生态）收录，独立仓库才可被生态消费 |
-| 5 | **重造轮子无罪** | 用户已裁定：生态"已占"的位（审计A/B）不再回避。基座自建核心，生态要么遵循 MDP、要么被参考实现覆盖 |
+| 1 | **Write-path separation, single security model** | The producer writing its own domain (a new write path) and the consumer "read-only + rollback exception" are two trust surfaces. Stuffing them into the diff repository = a second extension of AGENTS.md #1 (decoupling-design §5 already flagged it for review). An independent repository keeps each package's security boundary single and auditable |
+| 2 | **The spec needs a neutral anchor** | MDP + domain specs + event schemas + contracts have "standard library" status and do not belong as appendices of any single plugin |
+| 3 | **Independent version cadence** | diff 0.x is slow-paced (caret-locks minor; each minor requires profile changes). The foundation needs its own version line (only a frozen spec makes 1.0.0 discussable) |
+| 4 | **Ecosystem discoverability** | Only an independent repository can be consumed by the ecosystem: independent package name (`dsh-*` prefix) + `dsh-plugin` dist-tag + inclusion in plugin marketplaces (mydsh.dev / dsh-market and the 1500+ plugin ecosystem) |
+| 5 | **Reinventing wheels is not a sin** | The user has ruled: ecosystem "already occupied" slots (audit A/B) are no longer avoided. The foundation builds its own core; the ecosystem either follows MDP or is covered by the reference implementation |
 
-**形态（D2 已拍板：monorepo）**：单仓库双区——`packages/`（最小职责插件）+ `spec/`
-（规范：MDP 文档、域 schema、事件 schema、契约）。与任务书 T11（单仓库双包 vs 独立仓库）
-的差异：不止"生产者+消费者"两包，而是 **N 个最小职责插件 + 1 个规范包**（§6）。
+**Form (D2 decided: monorepo)**: single repo, two zones — `packages/` (minimal-responsibility plugins) + `spec/`
+(specs: MDP document, domain schemas, event schemas, contracts). Difference from task book T11 (single repo, two packages vs. independent repository):
+not just "producer + consumer" two packages, but **N minimal-responsibility plugins + 1 spec package** (§6).
 
-**命名（D1 已拍板）**：仓库/包名 **`dsh-audit-foundation`**；理念名 **Trust Anchor**——
-README 开篇定位语（"Trust Anchor：安全与审计基座"），不进入包名（避开 PKI 标准术语
-trust anchor 的撞名误会，评估见 §8 D1）。
+**Naming (D1 decided)**: repository/package name **`dsh-audit-foundation`**; concept name **Trust Anchor** —
+the README opening positioning phrase ("Trust Anchor: security & audit foundation"), not part of the package name (avoids the name-collision confusion
+with the PKI standard term trust anchor; evaluation in §8 D1).
 
-**定位一句话**：*一套原则（MDP）、一套规范（spec）、一组最小职责插件，把"策略 → 执行 →
-证据 → 存储 → 查询 → 呈现 → 响应 → 审计消费"全流程的接口钉死，让生态插件严丝合缝。*
-
----
-
-## 1. 最小设计原则（MDP）v0.1 —— 生态规范核心
-
-> 每条原则 = 一句话定义 + 判定标准（可检查他人插件是否合规）+ 违例示例 + 合规示例。
-> 原则编号稳定（M0–M10），修订只增语义不改编号（契约式演进）。
-
-### M0. 接口先于实现（Spec-first）
-- **定义**：任何**产生数据**的插件，必须从包导出其数据 schema（存储域 spec / 事件类型 /
-  服务签名 / 文件布局）；消费者**禁止同构重声明**。
-- **判定**：`import schema from 'pkg/domain-spec'` 可用；消费者的校验器是导入而非复制。
-- **违例**：rewind 不导出 checkpoints 域 spec → diff 被迫在 `lib/domain.mjs` 同构重声明
-  （v1/v2 折腾一轮，contract.md §1 明记）。**这正是"少了接口"的教科书案例。**
-- **合规**：基座所有域 schema 从包导出（复用 `domain-schema.mjs` 纯 zod 模式，任务书 T2/T13）。
-
-### M1. 最小职责（One concern per plugin）
-- **定义**：一个插件只承担一个横切关注点（审计、快照、轨迹、时间线、回滚、导出、护栏…）。
-- **判定**："拆掉它，其余功能仍然自洽"→ 它没做多；"少了他，生态无同类"→ 它没做少。
-- **违例**：diff 一包装下 timeline/trace/rollback/export 四个关注点（历史包袱，基座内拆开）。
-- **合规**：见 §6 插件清单；判断"多做/少做"用这条。
-
-### M2. 数据所有权（Producer owns the schema）
-- **定义**：谁写数据，谁拥有 schema 与语义；消费者只读 + **容错超集**（严格性属于生产者）。
-- **判定**：记录 schema 的必填/可选集在生产者的包里；消费者文档写明"容错，不校验严格性"。
-- **合规**：contract.md §1.1 已立范（"严格性属于生产者 rewind"）。
-
-### M3. 接口最小但完备（Minimum exposure, complete coverage）
-- **定义**：不多暴露一个没人用的接口（防耦合膨胀）；不少暴露一个消费者需要的接口（防猜/防重声明）。
-- **判定**：每个公开接口有**实际消费者或书面提案**；每个跨插件数据有 schema（M0）。
-  接口形状稳定后进契约（contract.md 同款），变更进 CHANGELOG + minor 版本。
-- **违例**：dsh-supervisor 的判定数据（allow/deny/waived）无稳定接口形状 → 消费者只能
-  预留+文档约定（任务书 T8 已降级处理）。**"少接口"的另一案例。**
-
-### M4. 横切关注点独立成插件（Cross-cutting concerns are plugins）
-- **定义**：审计、权限、路径校验、哈希、标签、配额、时间源等横切关注点各自独立，
-  **不内嵌**进功能插件；多个插件共享的能力走事件/服务接口，不互相 inject 实现。
-- **判定**：任何一个关注点换实现（如哈希算法、标签策略）时，只换对应插件，其余不动。
-- **合规**：harness 先例——`fs/write-intent` 事件门让 fs-observation-policy 可加可卸
-  （"layered permission/audit/sandbox interception belongs on `tools/execute`"）；
-  user-approval 的 `approval/asked`+`approval/decided` 成对审计记录独立于消费方。
-
-### M5. 失败关闭 + 降级诚实（Fail closed, degrade honestly）
-- **定义**：服务缺席 → 显式降级（degraded 标注、错误归因点名）或失败关闭；**绝不静默**。
-- **判定**：每个可缺席依赖都有降级矩阵（任务书/contract.md §1.5 已立范）。
-- **合规**：diff 的 degraded 标记 / bad-object 点名 / trace 重放 drift 的 `notes` 报告。
-
-### M6. 写路径单一且边界显式（One explicit write path）
-- **定义**：每个插件的写路径必须在 README/SECURITY 明示；路径校验（拒绝 `..`/绝对路径/
-  符号链接逃逸/受保护段）是公共横切组件，不是各写路径各写一份。
-- **判定**：SECURITY.md 可逐条对账；跨插件写路径校验逻辑同源（共享纯函数，非复制）。
-- **合规**：diff 的 rollback 六不变量（contract.md §2.2）即"边界显式"范本。
-
-### M7. 可验证性（Verifiability）
-- **定义**：数据可哈希、可重放、可重建：内容寻址（同内容=同 ref）、追加式记录、
-  哈希链（检测重排/缺失/篡改）、轨迹重放（任意两点重建内容）。
-- **判定**：任何证据类数据都有"验证它没被改/没丢"的只读手段；文档写明"可验证 ≠ 不可篡改"。
-- **范围**：哈希链内置（生态无边界清晰插件，任务书 9.5 已定）；签名因密钥管理未定不承诺。
-
-### M8. 组合优先，禁止 fork（Compose, don't fork）
-- **定义**：复用 harness 事件与服务（`fs/*-intent`、`tools/*`、`storageDomain`、
-  `sessionQuery`、`approval`、`webServer`）；与同类共存时**双捕获 + 内容寻址去重**，
-  绝不 fork 上游代码、绝不改上游仓库。
-- **判定**：包依赖表里没有"复制粘贴的上游源码"；共存场景有去重测试。
-
-### M9. 保留策略显式（Retention is explicit）
-- **定义**：任何存储的易失性语义（临时/持久/耐久 tier）必须文档化并**标注在数据上**；
-  配额逐出、gc 回收、可清记录都是语义的一部分，不是缺陷。
-- **违例**：rewind 配额逐出/`/rewind clear`/gc 回收从不文档化 → 下游靠 degraded 事后发现。
-- **合规**：节点 tier 标注（来源 + 持久性层级，任务书 T4）；审计域用"归档 vs 逐出"分离。
-
-### M10. 生态友好发布（Ecosystem-friendly release）
-- **定义**：包名 `dsh-*`；`exports` 导出 spec 与纯函数；README 双语；契约文档**事实性
-  描述 + 主动提案小节**（任务书 T3）；dist-tag `dsh-plugin`；变更进 CHANGELOG。
-- **判定**：新插件无需读源码即可对接（schema/布局/语义文档齐全）。
+**One-line positioning**: *one set of principles (MDP), one set of specs (spec), one set of minimal-responsibility plugins that pin down the
+interfaces of the whole pipeline "policy → enforcement → evidence → storage → query → presentation → response → audit consumption",
+so ecosystem plugins fit seamlessly.*
 
 ---
 
-## 2. 安全与审计全流程（端到端）
+## 1. Minimal Design Principles (MDP) v0.1 — the core of ecosystem specifications
+
+> Each principle = a one-sentence definition + judgment criteria (to check whether other plugins comply) + a violation example + a compliance example.
+> Principle numbers are stable (M0–M10); revisions only add semantics without changing numbers (contract-style evolution).
+
+### M0. Spec-first (Interface before implementation)
+- **Definition**: any plugin that **produces data** must export its data schema from the package (storage domain spec / event types /
+  service signatures / file layout); consumers are **forbidden from isomorphic redeclaration**.
+- **Judgment**: `import schema from 'pkg/domain-spec'` is available; the consumer's validator is an import, not a copy.
+- **Violation**: rewind does not export the checkpoints domain spec → diff is forced into an isomorphic redeclaration in `lib/domain.mjs`
+  (a round of v1/v2 churn, explicitly recorded in contract.md §1). **This is the textbook case of "missing interfaces".**
+- **Compliance**: all domain schemas of the foundation are exported from packages (reusing the pure zod patterns of `domain-schema.mjs`, task book T2/T13).
+
+### M1. One concern per plugin
+- **Definition**: one plugin takes on exactly one cross-cutting concern (audit, snapshot, trace, timeline, rollback, export, guard hints…).
+- **Judgment**: "remove it and the rest stays coherent" → it does not do too much; "without it the ecosystem has no counterpart" → it does not do too little.
+- **Violation**: diff packs four concerns — timeline/trace/rollback/export — into one package (historical baggage; split apart inside the foundation).
+- **Compliance**: see the plugin list in §6; judge "doing too much / too little" with this principle.
+
+### M2. Producer owns the schema
+- **Definition**: whoever writes the data owns its schema and semantics; consumers are read-only with a **tolerant superset** (strictness belongs to the producer).
+- **Judgment**: the required/optional set of a record schema lives in the producer's package; consumer docs state "tolerant, strictness not validated".
+- **Compliance**: contract.md §1.1 already sets the pattern ("strictness belongs to the producer rewind").
+
+### M3. Minimum exposure, complete coverage
+- **Definition**: do not expose one more interface than is used (prevents coupling bloat); do not expose one less interface than consumers need (prevents guessing/redeclaration).
+- **Judgment**: every public interface has an **actual consumer or a written proposal**; every cross-plugin datum has a schema (M0).
+  Once an interface shape stabilizes it enters the contract (same style as contract.md); changes go to CHANGELOG + a minor version.
+- **Violation**: dsh-supervisor's judgment data (allow/deny/waived) has no stable interface shape → consumers can only reserve + document conventions
+  (task book T8 already downgraded this). **Another case of "missing interfaces".**
+
+### M4. Cross-cutting concerns are plugins
+- **Definition**: cross-cutting concerns such as audit, permissions, path validation, hashing, labels, quota, and time sources each stand alone
+  and are **not embedded** into feature plugins; capabilities shared by multiple plugins go through event/service interfaces, not by injecting implementations into each other.
+- **Judgment**: when any concern swaps implementation (e.g., hash algorithm, label policy), only the corresponding plugin changes; the rest stay untouched.
+- **Compliance**: harness precedent — the `fs/write-intent` event gate lets fs-observation-policy be added/removed
+  ("layered permission/audit/sandbox interception belongs on `tools/execute`");
+  user-approval's paired `approval/asked` + `approval/decided` audit records are independent of the consuming side.
+
+### M5. Fail closed, degrade honestly
+- **Definition**: a missing service → explicit degradation (degraded annotation, error attribution naming the cause) or fail closed; **never silent**.
+- **Judgment**: every possibly-absent dependency has a degradation matrix (task book / contract.md §1.5 already set the pattern).
+- **Compliance**: diff's degraded markers / bad-object attribution / `notes` reports on trace replay drift.
+
+### M6. One explicit write path
+- **Definition**: every plugin's write path must be declared in README/SECURITY; path validation (rejecting `..` / absolute paths /
+  symlink escapes / protected segments) is a shared cross-cutting component, not a per-write-path copy.
+- **Judgment**: SECURITY.md can be reconciled item by item; write-path validation logic across plugins has a single source (shared pure functions, not copies).
+- **Compliance**: diff's rollback six invariants (contract.md §2.2) are the model for "explicit boundaries".
+
+### M7. Verifiability
+- **Definition**: data is hashable, replayable, and rebuildable: content addressing (same content = same ref), append-only records,
+  hash chains (detecting reordering/loss/tampering), trace replay (rebuilding content between any two points).
+- **Judgment**: any evidence-class data has a read-only means to "verify it was not altered/lost"; docs state "verifiable ≠ tamper-proof".
+- **Scope**: hash chains are built in (no clearly bounded ecosystem plugin exists; task book 9.5 decided); signatures are not committed to because key management is undecided.
+
+### M8. Compose, don't fork
+- **Definition**: reuse harness events and services (`fs/*-intent`, `tools/*`, `storageDomain`,
+  `sessionQuery`, `approval`, `webServer`); when coexisting with peers, use **dual capture + content-addressing dedup**,
+  never fork upstream code, never modify upstream repositories.
+- **Judgment**: the package dependency table contains no "copy-pasted upstream source"; coexistence scenarios have dedup tests.
+
+### M9. Retention is explicit
+- **Definition**: any storage volatility semantics (transient/persistent/durable tier) must be documented and **annotated on the data itself**;
+  quota eviction, gc reclamation, and clearable records are part of the semantics, not defects.
+- **Violation**: rewind's quota eviction / `/rewind clear` / gc reclamation is never documented → downstream only discovers it afterwards via degraded.
+- **Compliance**: node tier annotation (provenance + durability tier, task book T4); the audit domain separates "archive vs. eviction".
+
+### M10. Ecosystem-friendly release
+- **Definition**: package name `dsh-*`; `exports` exposes specs and pure functions; bilingual README; contract documents with **factual
+  description + proactive proposal section** (task book T3); dist-tag `dsh-plugin`; changes go to CHANGELOG.
+- **Judgment**: a new plugin can integrate without reading source code (schema/layout/semantics documentation complete).
+
+---
+
+## 2. The security & audit pipeline (end to end)
 
 ```
-策略 Policy → 执行 Enforcement → 证据 Evidence → 存储 Storage
-   → 查询 Query → 呈现 Presentation → 响应 Response → 审计消费 Audit consumption
+Policy → Enforcement → Evidence → Storage
+   → Query → Presentation → Response → Audit consumption
 ```
 
-| 阶段 | 干什么 | 数据 | 接口 | 责任方 |
+| Stage | What it does | Data | Interface | Responsible party |
 |---|---|---|---|---|
-| **策略** | 权限预设（sandbox mode + approval policy 捆绑）、护栏策略、审计目标（记录什么/留多久） | `permission/preset` 事件、config | `ctx.permissionPresets`（harness 已有） | harness 核心（已有）→ 基座补"审计策略" |
-| **执行** | sandbox 执行、approval 门、fs 意图门、工具管道拦截 | `sandbox/mode`、`approval/asked+decided`、`fs/*-intent`、`tool/call+result` | 事件门 + `ctx.approval`（已有） | harness 核心（已有），基座不重复 |
-| **证据** | 变更前快照、轨迹（会话日志）、审计事件成对记录 | 快照（git 对象/copy 目录）、`session.jsonl.zstd`、checkpoint/* 事件 | 存储域 + 快照目录布局 + 事件类型 | **rewind（可选）/ 基座生产者（自建）** + harness |
-| **存储** | 记录落盘：域（sqlite/json）、快照目录、追加式日志 | checkpoints / cdp-snapshots / audit 域 | `ctx.storageDomain`（已有）+ 域 spec（自建导出） | 基座生产者 + harness storage |
-| **查询** | 时间线提取、多源合并、轨迹重放、session 查询 | 时间线节点、重放内容 | `sessionQuery`（已有）、时间线 API | 基座消费者 + session-query |
-| **呈现** | GUI 面板、命令面、HTTP API | **视图模型**（spec 导出，UI 不读存储域，D9） | 视图模型契约 + GET 端点（webServer）+ `dsh-audit-ui` 组件 | 基座消费者 + spec |
-| **响应** | 回滚（预览→应用→撤销）、fork、清理 | 工作区文件、undo 内存态 | rollback/rollback-undo 端点 | 基座消费者（唯一写路径） |
-| **审计消费** | 证据导出（JSON/MD/SARIF）、可验证哈希、判定徽标、报告/热力图 | 导出产物、哈希、allow/deny/waived | 导出端点 + 判定数据消费接口（预留） | 基座（导出）+ 生态（判定源） |
+| **Policy** | permission presets (sandbox mode + approval policy bundled), guard-hint policies, audit objectives (what to record / how long to keep) | `permission/preset` event, config | `ctx.permissionPresets` (harness already has it) | harness core (existing) → foundation adds "audit policy" |
+| **Enforcement** | sandbox execution, approval gate, fs intent gate, tool pipeline interception | `sandbox/mode`, `approval/asked+decided`, `fs/*-intent`, `tool/call+result` | event gates + `ctx.approval` (existing) | harness core (existing); the foundation does not duplicate |
+| **Evidence** | pre-change snapshots, trace (session logs), paired audit event records | snapshots (git objects / copy directories), `session.jsonl.zstd`, checkpoint/* events | storage domain + snapshot directory layout + event types | **rewind (optional) / foundation producer (self-built)** + harness |
+| **Storage** | records written to disk: domains (sqlite/json), snapshot directories, append-only logs | checkpoints / cdp-snapshots / audit domains | `ctx.storageDomain` (existing) + domain specs (self-built, exported) | foundation producer + harness storage |
+| **Query** | timeline extraction, multi-source merge, trace replay, session queries | timeline nodes, replayed content | `sessionQuery` (existing), timeline API | foundation consumer + session-query |
+| **Presentation** | GUI panels, command surface, HTTP API | **view models** (exported by spec; UI does not read storage domains, D9) | view model contract + GET endpoints (webServer) + `dsh-audit-ui` components | foundation consumer + spec |
+| **Response** | rollback (preview → apply → undo), fork, cleanup | workspace files, undo in-memory state | rollback/rollback-undo endpoints | foundation consumer (sole write path) |
+| **Audit consumption** | evidence export (JSON/MD/SARIF), verifiable hashes, judgment badges, reports/heatmaps | export artifacts, hashes, allow/deny/waived | export endpoints + judgment-data consumption interface (reserved) | foundation (export) + ecosystem (judgment source) |
 
-**关键认识**：harness 核心已覆盖策略/执行/存储底座（sandbox、approval、storageDomain、
-session-query），**基座不重复造这些轮子**；基座的独有位是**证据层（耐久快照）、查询层
-（多源时间线）、响应层（安全回滚）与审计消费层（导出+可验证性）**——以及把它们钉死的
-**规范层（MDP + spec）**。用户裁定"不担心重复造轮子"适用于：生态里那些**边界不清、
-接口不自洽**的插件位（审计A/B 的散装实现），基座用规范化的参考实现覆盖它们。
+**Key insight**: the harness core already covers the policy/enforcement/storage foundation (sandbox, approval, storageDomain,
+session-query), so **the foundation does not reinvent those wheels**; the foundation's unique positions are the **evidence layer (durable snapshots), query layer
+(multi-source timeline), response layer (safe rollback), and audit consumption layer (export + verifiability)** — plus the
+**spec layer (MDP + spec)** that pins them down. The user ruling "not afraid to reinvent wheels" applies to: ecosystem plugin slots that are **unclearly bounded and
+internally inconsistent** (the ad-hoc audit A/B implementations), which the foundation covers with a normalized reference implementation.
 
 ---
 
-## 3. 功能清单与接口判定（F 表）
+## 3. Feature list and interface judgment (F table)
 
-> 判定规则（回答"是否需要接口"）：**数据跨插件边界流动 → 需要接口**（域 spec / 事件类型 /
-> 服务签名 / 文件布局 / HTTP 端点）；**只在一个插件内部 → 不需要接口**（内部模块即可）；
-> **横切关注点（多个插件共享）→ 需要接口，且独立成插件（M4）**。
+> Judgment rule (answering "is an interface needed?"): **data flows across plugin boundaries → an interface is needed** (domain spec / event types /
+> service signatures / file layout / HTTP endpoints); **internal to a single plugin → no interface needed** (internal modules suffice);
+> **cross-cutting concerns (shared by multiple plugins) → an interface is needed, and they stand alone as plugins (M4)**.
 
-| # | 功能 | 产生数据/组件 | 需要接口？ | 接口形状 / 拥有者 | 插件归属 | 状态 |
+| # | Feature | Produced data / component | Interface needed? | Interface shape / owner | Plugin | Status |
 |---|---|---|---|---|---|---|
-| F1 | 权限预设切换 | `permission/preset` 事件 | 已有 | harness `ctx.permissionPresets` | harness | 已有 |
-| F2 | 审批门（one-shot） | `approval/asked`+`decided` 成对审计 | 已有 | harness `ctx.approval` | harness | 已有 |
-| F3 | sandbox 执行/升级 | `sandbox/mode` | 已有 | harness `ctx.shell` | harness | 已有 |
-| F4 | fs 意图门（读改先读） | `fs/*-intent` 事件 | 已有 | harness 事件门（single-slot） | harness | 已有 |
-| F5 | **变更前快照（耐久）** | `cdp-snapshots` 域 + 快照目录 | **需要（自建）** | 域 spec 从包导出（M0）；布局 `$DSH_HOME/<pkg>/snapshots/<key16>/<uuid>/`；记录含来源+tier 元数据 | 生产者 | 设计期（任务书 T13–T16） |
-| F6 | 快照捕获器 | 捕获事件序列 | 需要 | 复用 harness `fs/*-intent`+`tools/pre-execute`；**无自有事件**（观察型直通） | 生产者 | 设计期（T14） |
-| F7 | **审计记录（成对事件聚合）** | `audit` 域：关键事件（审批判定/权限切换/工具调用/快照）聚合 + 哈希链 | **需要（自建）** | 域 spec 导出；事件类型对齐 harness 已有类型（不发明新语义） | 审计记录插件 | 新提案（§6 P4） |
-| F8 | 哈希链校验 | 每记录前驱哈希 | 需要 | 域 spec 的一部分（记录 schema 字段） | 生产者/审计记录 | 设计期（T15） |
-| F9 | 保留策略（配额/清理） | 逐出规则 | 需要 | 域 spec 文档化 tier + 配额语义（M9） | 生产者 | 设计期（T16） |
-| F10 | 轨迹重放（无快照兜底） | 重放内容序列 | 已有（消费） | `sessionQuery.readSession` + zstd 布局（只读） | 消费者（trace） | 已实现（0.5.0） |
-| F11 | 多源时间线（cdp ⊕ rewind ⊕ trace） | 时间线节点（来源+tier 标注） | **需要** | 节点模型 + 寻址语义（现有契约 §1.3 沿用）；跨源 diff 对齐规则 | 消费者（timeline） | 设计期（T17） |
-| F12 | 逐文件行级 diff | diff 视图 | 已有 | LCS 引擎（内部模块，无需接口） | 消费者（timeline） | 已实现 |
-| F13 | 安全回滚 + 单次撤销 | 工作区写入、undo 内存态 | 已有 | POST 端点 + 六不变量契约 | 消费者（rollback） | 已实现 |
-| F14 | **证据导出**（JSON/MD/SARIF） | 自包含导出产物 | **需要（自建）** | `GET /api/evidence-export` + `/diff --export`；产物可哈希可归档 | 导出插件 | 设计期（T5） |
-| F15 | 可验证性哈希（展示） | 节点/产物哈希 | **需要** | 哈希算法 + 展示位置标准化（M7；"哈希≠密封"） | 导出插件 | 设计期（T6） |
-| F16 | 判定徽标消费（allow/deny/waived） | 节点徽标 | **需要（预留）** | **接口形状待生态对齐**——按 M3 判定：无稳定接口 → 文档化约定 + 预留，不硬编码（T8 立场不变） | 消费者（timeline） | 预留 |
-| F17 | 异常变更提示 / 热力图 | 异常标记、画像数据 | 需要 | 只读 API + 面板；定位"提示"非"门禁"（T10 立场不变） | 护栏提示插件 | 设计期（T10） |
-| F18 | 护栏（敏感路径触碰等） | 提示/标记 | 需要 | 复用 `tools/execute` 监听（guard 先例：repeat-tool-reminder 的 additionalContexts 模式） | 护栏提示插件 | 新提案 |
-| F19 | 审计策略（记录什么/留多久） | 策略配置 | 需要 | config schema + 策略事件（对齐 `permission/preset` 模式） | 审计记录插件 | 新提案 |
-| F20 | 会话标题/血缘 | 标题、fork 分支 | 已有 | `sessionQuery.readTitle/traceSession`（可选服务，getter 现取） | 消费者 | 已实现 |
-| F21 | **视图模型契约 + 可复用 UI** | timeline-view / diff-view / audit-view / evidence-view；UI 组件包 | **需要（自建）** | 视图 schema 从 spec 导出（M0）；`dsh-audit-ui` 只消费视图模型、不读存储域（D9） | 呈现层 + spec | 已拍板（D9） |
+| F1 | Permission preset switching | `permission/preset` event | existing | harness `ctx.permissionPresets` | harness | existing |
+| F2 | Approval gate (one-shot) | paired `approval/asked` + `decided` audit | existing | harness `ctx.approval` | harness | existing |
+| F3 | sandbox execution/escalation | `sandbox/mode` | existing | harness `ctx.shell` | harness | existing |
+| F4 | fs intent gate (read before modify) | `fs/*-intent` events | existing | harness event gate (single-slot) | harness | existing |
+| F5 | **pre-change snapshot (durable)** | `cdp-snapshots` domain + snapshot directory | **needed (self-built)** | domain spec exported from the package (M0); layout `$DSH_HOME/<pkg>/snapshots/<key16>/<uuid>/`; records carry provenance + tier metadata | producer | design phase (task book T13–T16) |
+| F6 | Snapshot capturer | capture event sequences | needed | reuses harness `fs/*-intent` + `tools/pre-execute`; **no own events** (observation-style pass-through) | producer | design phase (T14) |
+| F7 | **Audit records (paired event aggregation)** | `audit` domain: aggregation of key events (approval decisions / permission switching / tool calls / snapshots) + hash chain | **needed (self-built)** | domain spec exported; event types aligned with harness's existing types (no invented semantics) | audit record plugin | new proposal (§6 P4) |
+| F8 | Hash chain verification | predecessor hash per record | needed | part of the domain spec (record schema field) | producer / audit record | design phase (T15) |
+| F9 | Retention (quota/cleanup) | eviction rules | needed | domain spec documents tier + quota semantics (M9) | producer | design phase (T16) |
+| F10 | Trace replay (no-snapshot fallback) | replayed content sequences | existing (consumption) | `sessionQuery.readSession` + zstd layout (read-only) | consumer (trace) | implemented (0.5.0) |
+| F11 | Multi-source timeline (cdp ⊕ rewind ⊕ trace) | timeline nodes (provenance + tier annotated) | **needed** | node model + addressing semantics (following the existing contract §1.3); cross-source diff alignment rules | consumer (timeline) | design phase (T17) |
+| F12 | Per-file line-level diff | diff view | existing | LCS engine (internal module, no interface needed) | consumer (timeline) | implemented |
+| F13 | Safe rollback + single undo | workspace writes, undo in-memory state | existing | POST endpoint + six-invariants contract | consumer (rollback) | implemented |
+| F14 | **Evidence export** (JSON/MD/SARIF) | self-contained export artifacts | **needed (self-built)** | `GET /api/evidence-export` + `/diff --export`; artifacts hashable and archivable | export plugin | design phase (T5) |
+| F15 | Verifiability hashes (display) | node/artifact hashes | **needed** | hash algorithm + standardized display location (M7; "hash ≠ seal") | export plugin | design phase (T6) |
+| F16 | Judgment badge consumption (allow/deny/waived) | node badges | **needed (reserved)** | **interface shape pending ecosystem alignment** — judged per M3: no stable interface → documented convention + reservation, no hard-coding (T8 stance unchanged) | consumer (timeline) | reserved |
+| F17 | Anomalous-change hints / heatmaps | anomaly markers, profile data | needed | read-only API + panel; positioned as "hints" not "gate" (T10 stance unchanged) | guard-hints plugin | design phase (T10) |
+| F18 | Guard hints (sensitive-path touches, etc.) | hints/markers | needed | reuses `tools/execute` listening (guard precedent: repeat-tool-reminder's additionalContexts pattern) | guard-hints plugin | new proposal |
+| F19 | Audit policy (what to record / how long to keep) | policy config | needed | config schema + policy event (aligned with the `permission/preset` pattern) | audit record plugin | new proposal |
+| F20 | Session title/lineage | titles, fork branches | existing | `sessionQuery.readTitle/traceSession` (optional service, fetched live via getter) | consumer | implemented |
+| F21 | **View model contract + reusable UI** | timeline-view / diff-view / audit-view / evidence-view; UI component package | **needed (self-built)** | view schemas exported from spec (M0); `dsh-audit-ui` consumes only view models, never reads storage domains (D9) | presentation layer + spec | decided (D9) |
 
 ---
 
-## 4. 横切关注点清单（需要接口的地方，M4 的落地表）
+## 4. Cross-cutting concern list (where interfaces are needed; the implementation table for M4)
 
-| 横切关注点 | 现状 | 基座动作 | 接口形状 |
+| Cross-cutting concern | Current state | Foundation action | Interface shape |
 |---|---|---|---|
-| 审计事件记录 | harness 有 approval 成对审计；checkpoint/* 走自适应门 | 聚合为审计域（F7），**消费** harness 事件，不发明新事件 | `audit` 域 spec（导出） |
-| 路径校验 | rollback 内嵌一套 | **提取为公共纯函数包**（拒绝 `..`/绝对/链接逃逸/受保护段），所有写路径共用 | 纯函数库（导出，零 DSH 依赖） |
-| 时间/时钟 | 各插件自取 | 统一 epoch-ms 语义进 spec（不建服务，只定语义） | 文档约定 |
-| 身份（session/turn/step/agent） | 事件自带 | 进审计记录 schema（对齐 harness 事件形状） | 域 spec |
-| 内容寻址/哈希 | 生产者用（去重）；导出用（可验证） | 同算法两个用途，**单一实现** | 纯函数库（导出） |
-| 意图标签 | labels.mjs 已实现 | 保留在消费者（呈现关注点）；spec 只定"标签从哪来"的输入契约 | 文档约定 |
-| 配额/保留 | rewind 内嵌（不文档化） | 生产者自管 + tier 元数据（M9） | 域 spec + 命令 |
-| 降级/错误归因 | degraded/点名已实现 | 作为 M5 验收标准写进 MDP，不新建组件 | 文档约定 |
-| HTTP 面 | GET 门禁 + 两个 POST | 全部新端点沿用；导出端点 GET-only | 契约文档 |
-| 配置 | Schemastery per-plugin | 每插件独立 config；审计策略（F19）单独 | config schema |
+| Audit event records | harness has paired approval audits; checkpoint/* goes through the adaptive gate | aggregate into the audit domain (F7), **consume** harness events, no invented events | `audit` domain spec (exported) |
+| Path validation | one embedded set in rollback | **extract into a shared pure-function package** (rejects `..` / absolute / link escapes / protected segments), shared by all write paths | pure-function library (exported, zero DSH dependencies) |
+| Time/clock | each plugin fetches its own | unify epoch-ms semantics into spec (no service, semantics only) | documented convention |
+| Identity (session/turn/step/agent) | carried by events | into the audit record schema (aligned with harness event shapes) | domain spec |
+| Content addressing/hashing | used by producer (dedup); used by export (verifiability) | one algorithm, two uses, **single implementation** | pure-function library (exported) |
+| Intent labels | implemented in labels.mjs | stay in the consumer (presentation concern); spec only defines the input contract of "where labels come from" | documented convention |
+| Quota/retention | embedded in rewind (undocumented) | producer manages itself + tier metadata (M9) | domain spec + commands |
+| Degradation/error attribution | degraded/attribution implemented | written into MDP as the M5 acceptance criterion, no new component | documented convention |
+| HTTP surface | GET gate + two POSTs | all new endpoints follow; export endpoints GET-only | contract document |
+| Configuration | Schemastery per-plugin | each plugin has its own config; audit policy (F19) separate | config schema |
 
 ---
 
-## 5. 最小职责插件划分（组合包清单）
+## 5. Minimal-responsibility plugin breakdown (composable package list)
 
 ```
                     ┌─────────────────────────────────────┐
-                    │  spec 包（非插件：MDP + 域 schema + 事件 schema + 契约 + zod 校验器）│
+                    │  spec package (non-plugin: MDP + domain schemas + event schemas + contracts + zod validators) │
                     └──────────────┬──────────────────────┘
-                                   │ 导出规范（M0：禁止同构重声明）
+                                   │ exports specs (M0: no isomorphic redeclaration)
    ┌───────────────┬───────────────┼──────────────────┬─────────────────┐
    ▼               ▼               ▼                  ▼                 ▼
-生产者            审计记录         消费者(timeline)    消费者(rollback)   导出
+ Producer        Audit ledger     Consumer(timeline) Consumer(rollback) Export
 dsh-checkpoint-   dsh-audit-      dsh-checkpoint-    dsh-checkpoint-   dsh-evidence-
 producer          ledger          timeline           rollback          export
-(写: cdp-         (写: audit 域    (读: 三源合并       (写: 工作区回滚      (读: 证据导出
- snapshots 域+     + 哈希链)       + trace + diff)     + 撤销; 唯一写路径)  + 可验证哈希)
- 目录; 捕获器;                      ▲                    ▲
- 哈希链; 保留)                      └─── 复用 ────────────┘
-                                   harness: storageDomain / sessionQuery /
-                                   webServer / fs/*-intent / tools/*
+(writes: cdp-     (writes: audit  (reads: three-     (writes: workspace (reads: evidence
+ snapshots        domain +        source merge +     rollback + undo;   export +
+ domain + dir;    hash chain)     trace + diff)      sole write path)   verifiable
+ capturer;                                          ▲                    ▲
+ hash chain;                                        └─── reuse ──────────┘
+ retention)                    harness: storageDomain / sessionQuery /
+                               webServer / fs/*-intent / tools/*
 ```
 
-| 包 | 职责（一个关注点） | 写路径 | 依赖（只 inject 需要的） | 对应任务书 |
+| Package | Responsibility (one concern) | Write path | Dependencies (inject only what's needed) | Task book |
 |---|---|---|---|---|
-| `dsh-checkpoint-producer` | 耐久变更前快照 + 内容寻址 + 哈希链 + 保留策略 | 自有域 `cdp-snapshots` + 自有目录（M6 校验） | `storageDomain`、`fs/*-intent`、`tools/pre-execute`（观察型直通） | T13–T16 |
-| `dsh-audit-ledger`（新） | 审计事件聚合记录（approval 判定/权限切换/工具调用/快照）成对入 `audit` 域 + 哈希链 | 自有域 `audit` | `sessions`（事件消费）、`storageDomain` | 新（覆盖生态散装审计A） |
-| `dsh-checkpoint-timeline` | 多源时间线 + 行级 diff + 意图标签 + 判定徽标消费 | 无 | `storageDomain`、`sessionQuery`（getter 现取） | T4/T8/T11/T17 |
-| `dsh-checkpoint-rollback` | 安全回滚 + 预览 + 单次撤销 | 工作区（六不变量） | `webServer` | 现有（拆分） |
-| `dsh-trace` | 轨迹重放（时间线/区间 diff/回溯） | 无 | `sessionQuery`、zstd 直读兜底 | 现有（拆分） |
-| `dsh-evidence-export` | 证据导出（JSON/MD/SARIF?）+ 可验证哈希 | 无 | `webServer` | T5–T7 |
-| `dsh-guard-hints`（新） | 异常变更/敏感路径**提示**（只读，非门禁） | 无 | `tools/*` 监听（additionalContexts 模式） | T10/F18 |
-| `dsh-audit-ui`（新） | 呈现组件（时间线/diff/审计视图/导出预览），**只消费 spec 视图模型**（D9） | 无 | spec 视图 schema（不读存储域） | D9 |
-| `spec/`（非插件） | MDP 文档 + 域 schema + 事件 schema + **视图模型 schema** + 契约 + zod 校验器导出 | 无 | 零 DSH 依赖（纯 zod） | T1–T3/T13 |
+| `dsh-checkpoint-producer` | durable pre-change snapshots + content addressing + hash chain + retention | own domain `cdp-snapshots` + own directory (M6 validation) | `storageDomain`, `fs/*-intent`, `tools/pre-execute` (observation-style pass-through) | T13–T16 |
+| `dsh-audit-ledger` (new) | paired aggregation of audit events (approval decisions / permission switching / tool calls / snapshots) into the `audit` domain + hash chain | own domain `audit` | `sessions` (event consumption), `storageDomain` | new (covers the ecosystem's ad-hoc audit A) |
+| `dsh-checkpoint-timeline` | multi-source timeline + line-level diff + intent labels + judgment badge consumption | none | `storageDomain`, `sessionQuery` (fetched live via getter) | T4/T8/T11/T17 |
+| `dsh-checkpoint-rollback` | safe rollback + preview + single undo | workspace (six invariants) | `webServer` | existing (split out) |
+| `dsh-trace` | trace replay (timeline/interval diff/backtracking) | none | `sessionQuery`, direct zstd read fallback | existing (split out) |
+| `dsh-evidence-export` | evidence export (JSON/MD/SARIF?) + verifiable hashes | none | `webServer` | T5–T7 |
+| `dsh-guard-hints` (new) | anomalous changes / sensitive paths **hints** (read-only, not a gate) | none | `tools/*` listening (additionalContexts pattern) | T10/F18 |
+| `dsh-audit-ui` (new) | presentation components (timeline/diff/audit view/export preview), **consumes only spec view models** (D9) | none | spec view schemas (does not read storage domains) | D9 |
+| `spec/` (non-plugin) | MDP document + domain schemas + event schemas + **view model schemas** + contracts + zod validator exports | none | zero DSH dependencies (pure zod) | T1–T3/T13 |
 
-**拆分原则**（为什么这样拆）：每个包可独立安装、独立安全模型（写路径表一目了然）、
-独立版本线；消费者三包（timeline/rollback/trace）内部模块现成（`lib/` 已是纯函数分层），
-拆分主要是**发布单元**拆分，代码搬家成本低。
+**Split principle** (why split this way): every package can be installed independently, has an independent security model (the write-path table is at a glance),
+and has an independent version line; the three consumer packages (timeline/rollback/trace) already have their internal modules (`lib/` is already a pure-function layering),
+so the split is mainly a **release unit** split, and moving code is cheap.
 
-**与现有仓库的关系（D3 已拍板：轻维护 + 复用）**：`dsh-checkpoint-diff` 的 `lib/` 纯函数层
-（domain-schema、workspace、labels、diff/engine、rollback、trace/*）**迁入**新仓库对应包；
-diff 仓库**继续维护**（0.5.x 补丁线：bug 修复与安全补丁，有人用就投入时间），新功能只在新
-仓库做。迁移原则：**复用不复制**——模块迁入新仓后旧仓不再演进该模块（只留补丁），避免
-双份维护；共享逻辑以新仓包为准，旧仓按需依赖或同步补丁。
-
----
-
-## 6. 生态策略：规范先行，不协商
-
-用户裁定"没有能力协商"→ 生态策略从任务书 §8.4 的"三策并列"收敛为**一策**：
-
-1. **规范先行**：MDP + 域 spec + 事件 schema 以 `spec/` 包公开（npm + 仓库），
-   zod 校验器随包导出——任何插件可 `import` 校验自己的记录是否符合标准。
-2. **参考实现**：组合包自己是最严格的遵循者（dogfooding）；每一个 MDP 违例示例
-   （rewind 不导出 spec、supervisor 无稳定判定接口）在参考实现里都有合规对应。
-3. **不协商、不等待**：rewind 保持"可选遗留源"（共存双捕获去重，T17），
-   不再等上游导出 spec（T9 降级为差异文档化）；生态插件（supervisor 等）的判定数据
-   有稳定接口就消费（F16），没有就文档化约定 + 预留。
-4. **对生态的贡献**：契约文档保持事实性 + "对生态的提案"小节（T3 保留）；
-   插件市场收录（M10）；`dsh-plugin` dist-tag。
-
-**对生态有利的第一性（理念校准 2026-08：生态优先，行业标准第二）**：**标准是手段，
-生态是目的**。生态缺的不是更多功能，而是**可对齐的接口**；基座把接口钉死、导出、
-免费提供校验器——这就是"少接口/多接口/错接口"通病的解药。默认遵循行业标准（标准
-是生态资产），但当标准与生态对齐冲突（接口可对齐性 / harness 事件词汇 / 消费者
-组合性）时，**偏离标准、记录理由，"部分对齐"为默认立场**——T4-3 审计字段（保留
-eventType harness 原文）与 T4-1 快照载体（不采用 git loose-object）即范本。
-**方向确认（用户 2026-08）**：项目本体是**生态标准**（接口规范 + 数据存储格式），
-统一上下游；参照当前主流审计实现方案（追加式记录 + 哈希链 + 可查询可导出），
-仅做基础功能、边界清晰，可选扩展（门禁/签名/SARIF/增强可视化）留给其他插件。
+**Relationship to the existing repository (D3 decided: light maintenance + reuse)**: `dsh-checkpoint-diff`'s `lib/` pure-function layer
+(domain-schema, workspace, labels, diff/engine, rollback, trace/*) is **migrated** into the corresponding packages of the new repository;
+the diff repository **continues to be maintained** (0.5.x patch line: bug fixes and security patches, invested in as long as people use it); new features are only built in the new
+repository. Migration principle: **reuse, don't copy** — once a module migrates into the new repository, the old repository stops evolving it (only patches remain), avoiding
+double maintenance; shared logic follows the new repository's packages, and the old repository depends on or syncs patches as needed.
 
 ---
 
-## 7. 与任务书 roadmap 的关系（重排）
+## 6. Ecosystem strategy: spec-first, no negotiation
 
-| 任务书 | 在新项目中的位置 |
+The user ruled "no capacity to negotiate" → the ecosystem strategy converges from the "three strategies in parallel" of task book §8.4 to **one strategy**:
+
+1. **Spec-first / norms first**: MDP + domain specs + event schemas are published as the `spec/` package (npm + repository),
+   with zod validators exported alongside the package — any plugin can `import` them to validate whether its records meet the standard.
+2. **Reference implementation**: the composable packages are themselves the strictest followers (dogfooding); every MDP violation example
+   (rewind not exporting its spec, supervisor without a stable judgment interface) has a compliant counterpart in the reference implementation.
+3. **No negotiation, no waiting**: rewind stays an "optional legacy source" (coexistence via dual capture + dedup, T17),
+   no longer waiting for upstream to export its spec (T9 downgraded to documenting differences); ecosystem plugins' (supervisor, etc.) judgment data
+   is consumed when it has a stable interface (F16), otherwise documented conventions + reservation.
+4. **Contribution to the ecosystem**: contract documents keep factual description + a "proposal to the ecosystem" section (T3 retained);
+   plugin marketplace inclusion (M10); `dsh-plugin` dist-tag.
+
+**First principles favorable to the ecosystem (philosophy calibration 2026-08: ecosystem first, industry standards second)**: **standards are a means;
+the ecosystem is the end**. What the ecosystem lacks is not more features, but **alignable interfaces**; the foundation pins down interfaces, exports them,
+and provides validators for free — that is the cure for the "missing/wrong/extra interfaces" ailment. By default it follows industry standards (standards
+are ecosystem assets), but when a standard conflicts with ecosystem alignment (interface alignability / harness event vocabulary / consumer
+composability), it **deviates from the standard, records the rationale, and takes "partial alignment" as the default stance** — T4-3 audit fields (keeping the
+harness-native `eventType`) and T4-1 snapshot carrier (not adopting git loose-object) are the models.
+**Direction confirmation (user 2026-08)**: the project itself is an **ecosystem standard** (interface spec + data storage format),
+unifying upstream and downstream; following current mainstream audit implementation approaches (append-only records + hash chains + queryable and exportable),
+only basic features with clear boundaries are built; optional extensions (gates/signatures/SARIF/enhanced visualizations) are left to other plugins.
+
+---
+
+## 7. Relationship to the task-book roadmap (rearranged)
+
+| Task book | Place in the new project |
 |---|---|
-| T1–T3（基线小件） | 新仓库首期（spec 包：MDP 文档 + exports `./domain-spec` + 契约提案小节） |
-| T4（tier 标注） | 消费者 timeline 包 |
-| T5–T7（导出+哈希） | `dsh-evidence-export` 包 |
-| T8（判定徽标） | timeline 包，立场不变（预留+文档化约定） |
-| T9（rewind 协商） | **取消**（用户裁定不协商），降级为差异文档化 |
-| T10（查得深） | `dsh-guard-hints` 包（提示非门禁） |
-| T11–T19（组合包） | 即本设计 §5 的包划分（T11 已拍板：monorepo D2 + 轻维护复用 D3） |
-| T20（1.0.0 门槛） | 契约冻结评审在新仓库 spec 包：MDP + 域 spec + 契约完备 → 1.0.0 |
+| T1–T3 (baseline small items) | first phase of the new repository (spec package: MDP document + exports `./domain-spec` + contract proposal section) |
+| T4 (tier annotation) | consumer timeline package |
+| T5–T7 (export + hashes) | `dsh-evidence-export` package |
+| T8 (judgment badges) | timeline package, stance unchanged (reserve + documented conventions) |
+| T9 (rewind negotiation) | **cancelled** (user ruled: no negotiation), downgraded to documenting differences |
+| T10 (dig deeper) | `dsh-guard-hints` package (hints, not a gate) |
+| T11–T19 (composable packages) | this design's package breakdown in §5 (T11 decided: monorepo D2 + light maintenance/reuse D3) |
+| T20 (1.0.0 gate) | contract-freeze review in the new repository's spec package: MDP + domain specs + contracts complete → 1.0.0 |
 
 ---
 
-## 8. 待决策点（需拍板）
+## 8. Pending decision points (need to be decided)
 
-| # | 决策点 | 推荐 | 备选 |
+| # | Decision point | Recommendation | Alternatives |
 |---|---|---|---|
-| D1 | 新仓库命名 | **`dsh-audit-foundation`** ✅ 已拍板（语义最准、零术语冲突；理念名 **Trust Anchor** 仅用于文档定位语，不进入包名——trust anchor 是 RFC 6024 / X.509 的 PKI 标准术语，作包名会误导安全/GRC 受众） | 已评估：`dsh-security-foundation` / `dsh-cornerstone` / `dsh-baseline` / trust-anchor 变体（均不选） |
-| D2 | 仓库形态 | **monorepo**（packages/ + spec/） ✅ 已拍板 | — |
-| D3 | 现有 diff 仓库去向 | **轻维护 + 代码复用** ✅ 已拍板：0.5.x 补丁线继续（bug/安全补丁，有人用就投入时间）；`lib/` 纯函数层迁入新仓对应包（复用不复制，迁出后旧仓不再演进该模块） | 冻结 / 薄壳转发（不选） |
-| D4 | 审计B（门禁/策略执行）做不做 | **不做门禁** ✅ 已拍板（harness approval/sandbox 已是门；护栏只做提示 F18；方向确认②：仅基础功能，扩展留给生态） | 做最小门禁（违背 M1：与 harness 职责重叠） |
-| D5 | `dsh-audit-ledger`（审计域）是否首期做 | **首期做** ✅ 已拍板（审计A 是基座核心承诺；生态散装实现不达标）。**基础范围**：成对事件聚合 + 哈希链 + 保留策略；高级分析/聚合报表留给生态 | 二期（先 producer+consumer） |
-| D6 | 签名/防篡改 | **不承诺** ✅ 已拍板（密钥管理未定，M7 只到哈希链；签名留给生态插件，接口位预留） | 预留接口位 |
-| D7 | SARIF 导出 | **首期只 JSON+MD** ✅ 已拍板（方向确认②：可选扩展留给其他插件，SARIF 不再写受众判断记录） | 首期全做 |
-| D8 | 命名空间归属 | tmpdot 名下新仓库（身份规则沿用 AGENTS.md #4）——**待用户 GitHub 建仓** | 新组织 |
-| D9 | 呈现层：UI 与数据分离 | **分离 + 暴露 UI 接口** ✅ 已拍板（方向确认③）：视图模型 schema 进 spec 包；`dsh-audit-ui` 组件只消费视图模型；其他插件同数据结构可复用 UI（详见 §9） | UI 与数据耦合（不选：生态无法复用） |
+| D1 | New repository naming | **`dsh-audit-foundation`** ✅ decided (most precise semantics, zero terminology conflicts; the concept name **Trust Anchor** is only used as a documentation positioning phrase, not part of the package name — trust anchor is a PKI standard term in RFC 6024 / X.509, and using it as a package name would mislead security/GRC audiences) | evaluated: `dsh-security-foundation` / `dsh-cornerstone` / `dsh-baseline` / trust-anchor variants (none chosen) |
+| D2 | Repository form | **monorepo** (packages/ + spec/) ✅ decided | — |
+| D3 | Fate of the existing diff repository | **light maintenance + code reuse** ✅ decided: the 0.5.x patch line continues (bug/security patches, invested in as long as people use it); `lib/` pure-function layer migrates into the corresponding packages of the new repository (reuse, don't copy; the old repository no longer evolves a module after it moves out) | freeze / thin-shell forwarding (not chosen) |
+| D4 | Whether to build audit B (gate/policy enforcement) | **no gate** ✅ decided (harness approval/sandbox are already the gates; guard hints only provide hints, F18; direction confirmation ②: only basic features, extensions left to the ecosystem) | build a minimal gate (violates M1: overlaps harness responsibilities) |
+| D5 | Whether `dsh-audit-ledger` (audit domain) ships in the first phase | **first phase** ✅ decided (audit A is the foundation's core commitment; the ecosystem's ad-hoc implementations do not meet the bar). **Baseline scope**: paired event aggregation + hash chain + retention; advanced analysis/aggregated reports left to the ecosystem | second phase (producer + consumer first) |
+| D6 | Signatures/tamper-proofing | **no commitment** ✅ decided (key management undecided; M7 only goes up to hash chains; signatures left to ecosystem plugins, interface slot reserved) | reserve the interface slot |
+| D7 | SARIF export | **JSON+MD only in the first phase** ✅ decided (direction confirmation ②: optional extensions left to other plugins; SARIF no longer gets an audience-judgment write-up) | everything in the first phase |
+| D8 | Namespace ownership | new **organization**, collaboration-mode preferred (user direction 2026-08-21: shared/team ownership over a single-person namespace; commit identity is left to each contributor's local git config) — **pending the user creating the GitHub repository** | single-person namespace |
+| D9 | Presentation layer: UI and data separation | **separate + expose UI interfaces** ✅ decided (direction confirmation ③): view model schemas go into the spec package; `dsh-audit-ui` components consume only view models; other plugins with the same data structures can reuse the UI (see §9) | UI coupled to data (not chosen: the ecosystem cannot reuse) |
 
 ---
 
-## 9. 呈现层决策（D9 已拍板：UI 与数据分离，UI 接口可复用）
+## 9. Presentation layer decision (D9 decided: UI and data separation, UI interfaces reusable)
 
-**决策**：呈现层拆成两层——**视图模型（数据契约）** 与 **UI 组件（视图）**，各自独立
-发布；UI **只消费视图模型，绝不直接读存储域**。视图模型属于 spec（项目本体是接口规范
-与数据存储格式，UI 是附带的参考实现）。
+**Decision**: the presentation layer is split into two layers — **view models (data contracts)** and **UI components (views)**, each released
+independently; the UI **consumes only view models and never reads storage domains directly**. View models belong to spec (the project itself is the interface spec
+and data storage format; the UI is an incidental reference implementation).
 
-- **视图模型契约（view schemas，进 spec 包）**：`timeline-view`（时间线节点/徽标）、
-  `diff-view`（逐文件行级 diff）、`audit-view`（审计记录）、`evidence-view`（导出预览）；
-  zod 校验器从 `dsh-audit-spec` 导出（M0：禁止同构重声明）。
-- **数据流单向**：存储域 → 查询/聚合（common 纯函数）→ 视图模型（JSON）→
-  GET 端点 / slot props → UI 组件。域布局变更不影响 UI，反之亦然。
-- **UI 包 `dsh-audit-ui`（规划）**：时间线 / diff / 审计视图 / 导出预览等客户端组件；
-  只接收视图模型作 props；零写路径；独立版本线；README 标注每个组件的视图模型输入。
-- **复用规则（M3 落地）**：生态插件持有同构数据（自有域或 harness 事件）时，自行派生
-  视图模型后即可挂载基座 UI；数据校验失败 → 显式降级/报错（M5），不做数据猜测。
-- **首期范围（方向确认②）**：只做基础视图（时间线 + diff + 审计记录 + 导出预览）；
-  热力图、画像等增强可视化按需后置，留给生态插件。
+- **View model contract (view schemas, into the spec package)**: `timeline-view` (timeline nodes/badges),
+  `diff-view` (per-file line-level diff), `audit-view` (audit records), `evidence-view` (export preview);
+  zod validators exported from `dsh-audit-spec` (M0: no isomorphic redeclaration).
+- **One-way data flow**: storage domains → query/aggregation (common pure functions) → view models (JSON) →
+  GET endpoints / slot props → UI components. Domain layout changes do not affect the UI, and vice versa.
+- **UI package `dsh-audit-ui` (planned)**: client components such as timeline / diff / audit view / export preview;
+  receives only view models as props; zero write path; independent version line; README documents each component's view model input.
+- **Reuse rule (M3 implementation)**: when an ecosystem plugin holds isomorphic data (its own domain or harness events), it can derive
+  view models itself and then mount the foundation's UI; data validation failure → explicit degradation/error (M5), no data guessing.
+- **First-phase scope (direction confirmation ②)**: only basic views (timeline + diff + audit records + export preview);
+  enhanced visualizations such as heatmaps and profiles are deferred as needed, left to ecosystem plugins.
 
-## 10. 技术选型工作流（已拍板 2026-08-20，用户批准完整版）
+## 10. Technical-selections workflow (decided 2026-08-20, user approved the full version)
 
-任何关键技术选型按四层判定登记到 `docs/technical-selections.md`（该文档头部为
-完整工作流与规则，这里是摘要）：
+Any key technical selection is registered in `docs/technical-selections.md` under the four-tier judgment (that document's header holds the
+full workflow and rules; this is a summary):
 
-- **T1 正式标准 / T2 事实标准** → **直接执行，不询问**（执行时用 web_search
-  核实原文与当前版本，链接进登记表）；
-- **生态优先例外（校准 2026-08）**：T1–T3 默认执行，但采纳标准损害生态对齐
-  （接口可对齐性 / harness 事件词汇 / 消费者组合性）时**偏离并记录理由**，
-  "部分对齐"为默认立场（登记表规则 5；§6）；
-- **T3 行业惯例** → 直接执行，记录惯例描述与代表案例；
-- **T4 无标准** → 收集①DSH 生态相似插件方案 ②行业相近方案 → 记录对标立场
-  （对齐/部分对齐/不采用 + 理由 + 链接）→ 先按最佳判断执行 → 进"待决策"清单
-  → 按闸门提醒用户拍板；
-- **闸门**：影响对外契约形状（域 schema / 视图模型 / 端点）的 T4 必须在契约
-  冻结（1.0.0 门槛）前清零；内部实现细节执行后决策即可；
-- **提醒**：涉及选型的回合结束列"待你决策"；提交前检查登记表，新增 T4 在提交
-  说明点名；HANDOFF 同步。
+- **T1 formal standard / T2 de-facto standard** → **execute directly, no asking** (when executing, verify the original text and current version
+  with web_search, and link them into the register);
+- **Ecosystem-first exception (calibration 2026-08)**: T1–T3 are executed by default, but when adopting a standard harms ecosystem alignment
+  (interface alignability / harness event vocabulary / consumer composability), **deviate and record the rationale**;
+  "partial alignment" is the default stance (register rule 5; §6);
+- **T3 industry convention** → execute directly, record the convention description and representative cases;
+- **T4 no standard** → collect ① similar plugin approaches in the DSH ecosystem ② similar industry approaches → record the benchmarking stance
+  (alignment / partial alignment / not adopted + rationale + links) → execute by best judgment first → enter the "pending-decision" list
+  → remind the user to decide via the gate;
+- **Gate**: T4 items affecting the external contract shape (domain schemas / view models / endpoints) must be cleared before the contract
+  freeze (1.0.0 gate); internal implementation details can be decided after execution;
+- **Reminder**: at the end of a round involving a selection, list "pending your decision"; before committing, check the register and name new T4 items
+  in the commit message; keep the pending-decision list in sync (register §2 is the authoritative source).
 
-当前 T4 待决策：快照载体（T4-1）、schema 校验器（T4-2）、审计字段命名（T4-3）、
-视图模型形状（T4-4）——详见登记表 §2。
+Current T4 pending decisions: snapshot carrier (T4-1), schema validator (T4-2), audit field naming (T4-3),
+view model shape (T4-4) — see register §2 for details.
 
-## 附：本文档与现有文档的关系
+## Appendix: relationship of this document to existing documents
 
-- 不取代 roadmap-tasks.md / 3-traceability-vs-audit.md / decoupling-design.md / contract.md；
-  它们是推论的来源与细节，本文是**建库决策 + 原则 + 划分**的汇总草案。
-- 拍板后：D1–D8 决策记录回填本文；spec 包落地时 MDP 移入 spec/ 作为正式规范；
-  AGENTS.md 非协商条款在**新仓库**重新起草（旧仓库条款不动）。
+- Does not replace roadmap-tasks.md / 3-traceability-vs-audit.md / decoupling-design.md / contract.md;
+  they are the sources and details of the inferences; this document is the consolidated draft of **library-building decisions + principles + breakdown**.
+- After decisions are made: the D1–D8 decision records are backfilled into this document; when the spec package lands, MDP moves into spec/ as the formal specification;
+  AGENTS.md's no-negotiation clauses are re-drafted in the **new repository** (the old repository's clauses stay untouched).

@@ -38,7 +38,9 @@
    internal implementation details can be decided after execution — no gate.
 4. **Reminder**: at the end of every round involving a selection, list the "pending your
    decision" items at the end of the reply; before committing, check the register and name any
-   new T4 in the commit message; keep the pending-decision list in sync in HANDOFF.md.
+   new T4 in the commit message. The authoritative pending-decision list is register §2 — keep
+   it in sync there (HANDOFF.md, if used locally, is a per-developer working note and is
+   git-ignored).
 5. **Ecosystem first (calibrated 2026-08)**: **standards are a means; the ecosystem is the
    end**. The "execute directly" of T1–T3 applies only when adopting a standard does **not
    harm ecosystem alignment**; if it does — interface alignability (M0/M3), the harness event
@@ -47,6 +49,20 @@
    (alignment degree + deviation points + what was protected, into the stance column of the
    register). Any row that is not fully aligned must state clearly "what was deviated from and
    which point of the ecosystem was protected"; no implicit deviation may remain.
+   **Ecosystem alignment is a dynamic feedback process, not a static assertion** — the
+   mechanism is `docs/ecosystem-observation.md` (observe → revise → publish → validate; the
+   observation log is the input channel). Two binding requirements on top of the recording
+   obligation:
+   - **Falsifiable claims**: every row that is not fully aligned carries, in addition to the
+     rationale, a falsifiable claim + verification method (e.g. "a new plugin can integrate
+     without reading source: verify by walk-through using only README + exported schemas").
+     A deviation whose claim cannot be stated falsifiably is not a decision — it is an excuse.
+   - **Two-layer validation**: real-plugin integration is the **compatibility floor**
+     (necessary, prevents ivory-tower specs) but never 100% weight — a community plugin's
+     shape is "a scheme that happens to exist", not necessarily the best scheme. Design
+     authority stays with the spec author, judging against MDP + industry benchmarking
+     (**quality ceiling**). Community shapes enter the candidate pool (§4), never
+     auto-promoted. Core stance: **observe everything, adopt nothing by default**.
 
 ---
 

@@ -31,8 +31,10 @@ DeepSeek Harness 生态的**安全与审计基座**（理念名 Trust Anchor）�
    迁入后旧仓不再演进该模块（D3）。不修改
    [dsh-checkpoint-rewind](https://github.com/PerryLink/dsh-checkpoint-rewind)，
    它是只读上游参考。
-5. **身份**：所有提交使用 `tmpdot <144113873+tmpdot@users.noreply.github.com>`。
-   仓库归属 `tmpdot/dsh-audit-foundation`（GitHub 注册为待办，见 HANDOFF 流程）。
+5. **提交身份与仓库归属**：不强制任何提交身份——由本地 agent 按当前 git
+   配置自行判断（协作友好，不做单一身份锁定）。归属**倾向协作模式**：仓库
+   建议置于组织名下（所有权中立、利于多人/多 agent 协作），最终归属见
+   `docs/bundle-foundation-design.md` D8（GitHub 建仓为待办）。
 6. **Token 卫生**：任何 token 绝不写入仓库文件；只用环境变量或一次性
    `git -c http.extraheader=...`。
 7. **写文件编码**：禁止 PowerShell `Set-Content -Encoding utf8`（BOM 破坏
@@ -43,6 +45,10 @@ DeepSeek Harness 生态的**安全与审计基座**（理念名 Trust Anchor）�
    标准会损害生态对齐（接口可对齐性 / harness 事件词汇不被扭曲 / 消费者的
    组合性）时**偏离并记录理由**，"部分对齐"为默认立场（见 technical-selections
    规则 5 与 MDP 总纲；README"理念"节是本条面向开发者的定位表述）。
+   生态对齐是**动态反馈过程**（机制见 `docs/ecosystem-observation.md`）：
+   每轮涉及生态面对决策的迭代，必须回答"观察到了什么、修订了什么、保护了什么"；
+   验证双层——真实插件接入是兼容性下界（必要），设计权威在 spec 作者（质量上界），
+   **观察一切、默认不采纳**。
 
 ## 仓库布局
 
@@ -74,6 +80,9 @@ pnpm test:common      # 仅公共库
   收集生态相似插件 + 行业方案、记录对标立场后执行，进"待决策"清单；影响对外
   契约形状（域 schema / 视图模型 / 端点）的 T4 在契约冻结（1.0.0）前必须拍板。
   **生态优先**：任何层级若采纳标准损害生态对齐，偏离并记录理由（规则 5）。
+- 生态观察：每轮迭代前先看 `docs/ecosystem-observation.md` 观察日志，登记
+  本轮观察到的新社区接入方式/错误（含链接）；偏离行必须带可证伪断言 + 验证方法；
+  真实插件演练是兼容性下界，设计权威在 spec 作者——**观察一切、默认不采纳**。
 - 发布：每包独立 `npm publish`（prepack 自动跑测试）→ profile 组合安装 →
   tag + `dsh-plugin` dist-tag；host 侧改动需 harness 重启，纯客户端改动刷新页面。
 
