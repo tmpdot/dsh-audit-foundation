@@ -80,6 +80,7 @@ dsh 生态年轻且变化极快:发布数天内 `dsh-plugin` topic 下已有 700
 | 2026-08 | 审计/安全插件类别 | 权限画像 / verdict JSON | 安装无权限声明环节;`dsh plugin add` 即获全权限 | 共享权限画像事件格式 | M4/M8 消费 harness 事件 |
 | 2026-08 | 存储类插件(普遍) | quota/eviction 不文档化 | 数据消失语义事后才发现 | tier/provenance 标注 | M9/M5 语义显式 |
 | 2026-08 | dsh-checkpoint-diff 时间线面板词汇 | 被复用为视图模型草案基线（branchId / A-M-D / markers） | 单一实现者的历史词汇险些成为规范基线 | 视图契约独立重设计（直观 + 渲染性能，T4-4 于 2026-08-21 拍板）；单一实现者词汇不是标准 | M0/M3 接口形状权威 |
+| 2026-08 | audit 域 `eventType` 原文透传（T4-3） | harness 事件以原文存入 `audit.records.eventType` | 迁移到数字映射的成本随历史积累与代码固化上升——而追加式账本 + 哈希链禁止重写旧记录（数据迁移不可能，不只是昂贵） | 读路径迁移地基（2026-08-21）：`common/event-registry.mjs` 注册表 + 预置种子（私有区间、永不落盘）+ `isFrozenEventType` 写门禁；记录/视图 schema 增加可选 `eventTypeId`（加法、向后兼容）；派生钩子仅对 frozen/官方事件附加数字码——官方映射落地 = 换数据 + 翻标志，消费方零改动 | M8 词汇永久保留原文；存储格式冻结；未知事件原文透传无码（M8"一切皆插件"） |
 
 ---
 
@@ -91,6 +92,14 @@ dsh 生态年轻且变化极快:发布数天内 `dsh-plugin` topic 下已有 700
 > 验证:仅凭 README + 导出 schema 完成接入演练(M10 验收标准)。
 > 注:真实插件演练是**必要**条件(兼容性下界),而非充分条件——仅兼容不会让某个形状晋升为
 > 规范;设计质量须另行对照 MDP 判断(质量上界)。
+
+> 断言(T4-3 地基):未来采纳官方数字映射的成本是一次数据交换 + 标志翻转,绝不是记录重写
+> 或消费方代码改动。
+> 验证:(a) 无 frozen 条目时 `deriveAuditDrafts` 输出与地基前形状一致(`eventTypeId` 缺省,
+> 无可见变化);(b) 经 `defineEventTypes` 注册 frozen 条目后,派生钩子零改动开始产出
+> `eventTypeId`(由 `packages/common/test/event-registry.test.mjs` 与
+> `packages/audit-ledger/test/derive.test.mjs` 覆盖)。
+> 可证伪反例:任何历史记录被重写,或任何消费方需改动才能消费新码,即证伪该设计。
 
 一个无法用可证伪方式陈述的偏离,不是决策,而是借口。
 

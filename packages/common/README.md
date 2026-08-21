@@ -14,6 +14,7 @@
 | `pathguard.mjs` | 写路径安全纯函数：normalizeTargetPath / isProtectedRel / resolveInside / classifyRollback / withKeyLock | M6 |
 | `hash.mjs` | 内容寻址（contentHash）/ 记录哈希链（recordHash / stableStringify） | M7 |
 | `retention.mjs` | 保留策略纯函数（computeRetention：数量/字节配额 → 保留/逐出划分；只算不删） | M9 |
+| `event-registry.mjs` | 事件类型注册表（T4-3 数字映射地基）：eventType↔code 双射、冲突抛错、幂等注册、frozen 门禁（`isFrozenEventType` = 唯一落盘判据）；预置种子为"向官方建议"的清单底稿 | M8 |
 | `constants.mjs` | 词汇表与协议常量（providers / file status / diff ops / limits） | — |
 
 来源：`workspace`/`labels`/`diff-engine`/`pathguard`/`constants` 迁移自
@@ -28,6 +29,7 @@ import { normalizeTargetPath, resolveInside } from 'dsh-audit-common'
 import { diffLines } from 'dsh-audit-common'
 import { contentHash, recordHash } from 'dsh-audit-common'
 import { computeRetention } from 'dsh-audit-common'
+import { eventTypeId, isFrozenEventType, defineEventTypes } from 'dsh-audit-common'
 ```
 
 ## 合规自证（MDP）

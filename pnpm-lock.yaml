@@ -8,7 +8,11 @@ importers:
 
   .: {}
 
-  packages/audit-ledger: {}
+  packages/audit-ledger:
+    dependencies:
+      dsh-audit-common:
+        specifier: workspace:*
+        version: link:../common
 
   packages/common: {}
 

@@ -17,6 +17,9 @@
     "test": "node --test-isolation=none --test \"test/**/*.test.mjs\"",
     "prepack": "npm test"
   },
+  "dependencies": {
+    "dsh-audit-common": "workspace:*"
+  },
   "engines": {
     "node": "^22.19.0 || >=24.0.0"
   },

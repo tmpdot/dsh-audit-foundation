@@ -91,6 +91,7 @@ technical-selections §4) — they are inputs to judgment, never auto-promoted t
 | 2026-08 | audit/security plugin category | permission profile / verdict JSON | no permission-declaration step at install; `dsh plugin add` grants full permissions | shared permission-profile event format | M4/M8 consume harness events |
 | 2026-08 | storage-class plugins generally | quota/eviction undocumented | data-disappearance semantics discovered post-hoc | tier/provenance annotation | M9/M5 explicit semantics |
 | 2026-08 | dsh-checkpoint-diff timeline panel vocabulary | reused as the view-model draft baseline (branchId / A-M-D / markers) | single implementer's legacy vocabulary nearly became the spec baseline | view contract redesigned independently (intuitive + render-performance, T4-4 decided 2026-08-21); single-implementer vocabulary is not a standard | M0/M3 interface-shape authority |
+| 2026-08 | `eventType` verbatim passthrough in the audit domain (T4-3) | harness events stored as original text in `audit.records.eventType` | migrating to numeric mapping grows costlier as history accumulates and code solidifies — and the append-only ledger + hash chain forbid rewriting old records (a data migration would be impossible, not just expensive) | read-path migration groundwork (2026-08-21): `common/event-registry.mjs` registry + provisional seeds (private range, never persisted) + `isFrozenEventType` write gate; optional `eventTypeId` in record/view schemas (additive, backward compatible); derive hook attaches codes only for frozen/official events — official mapping lands as a data swap + flag flip, consumers zero-change | M8 vocabulary kept verbatim forever; storage format frozen; unknown events stay text-only passthrough (M8 "everything is a plugin") |
 
 ---
 
@@ -104,6 +105,15 @@ Every register row that is not fully aligned must carry, in addition to the stan
 > Note: the real-plugin walk-through is a **necessary** condition (compatibility floor), not a
 > sufficient one — compatibility alone does not promote a shape to the spec; design quality is
 > judged separately against MDP (quality ceiling).
+
+> Claim (T4-3 groundwork): adopting an official numeric mapping later costs a data swap + flag flip,
+> never a record rewrite or consumer code change.
+> Verify: (a) `deriveAuditDrafts` output is identical today to the pre-groundwork shape when no
+> frozen entries exist (`eventTypeId` absent — no observable change); (b) registering a frozen entry
+> via `defineEventTypes` makes the derive hook emit `eventTypeId` with zero changes elsewhere
+> (covered by `packages/common/test/event-registry.test.mjs` + `packages/audit-ledger/test/derive.test.mjs`).
+> Falsifiable counter: any historical record being rewritten, or any consumer needing changes to
+> consume the new codes, disproves the design.
 
 A deviation whose claim cannot be stated falsifiably is not a decision — it is an excuse.
 

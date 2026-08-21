@@ -11,4 +11,10 @@
 - `src/derive.mjs`（纯函数，零 DSH 依赖）：harness 会话事件 → audit 记录
   草案派生（tool 成对 / approval 成对 / permission / snapshot；未知事件跳过；
   rollback / guard 为预留位）。
-- 测试：5 项（derive.test.mjs）。
+- **T4-3 数字映射地基（2026-08-21）**：`deriveAuditDrafts` 增加 `registry`
+  注入选项（缺省 `dsh-audit-common` 默认事件注册表），仅 **frozen**（官方
+  背书）事件附加 `eventTypeId`，`eventType` 原文永远保留——官方映射落地 =
+  注册 frozen 条目即自动产出，存储与消费方零改动。新增 `dsh-audit-common`
+  workspace 依赖。
+- 测试：7 项（derive.test.mjs，含 T4-3 门禁两例：frozen 附加码 / 未冻结与
+  未知事件无码透传）。

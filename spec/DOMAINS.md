@@ -56,14 +56,27 @@
   approval、permission/preset → permission、checkpoint/* → snapshot），未知
   事件跳过；只产语义核，`id/seq/time/prevHash` 由写路径落盘补齐（M7）。
   **rollback / guard 类别为预留位**（生态事件，基础范围不发明平行语义）。
+  T4-3 数字映射地基：注册表经 options 注入（缺省 `dsh-audit-common` 默认
+  实例），仅 **frozen**（官方背书）事件附加 `eventTypeId`，原文永远保留。
 - **记录 schema**：`src/audit.mjs`。要点：
   - `category`：approval | permission | tool | snapshot | rollback | guard；
-  - `eventType`：harness 事件类型原文；
+  - `eventType`：harness 事件类型原文（**存储层永久主键**，任何情况下不重写）；
+  - `eventTypeId?`：数字码（T4-3 演进**加法字段**，向后兼容）——仅当事件类型
+    在 `dsh-audit-common` 的 `event-registry.mjs` 中已注册且 **frozen**（官方
+    背书）时由派生钩子附加；旧记录永不补写、不迁移（追加式账本 + 哈希链，
+    迁移是**读路径**的事）。未注册/未冻结事件 → 原文透传、无码（"一切皆
+    插件"，M8）；
   - `payload`：事件 data 的 JSON 快照（可序列化）；
   - `prevHash` 哈希链（M7）；
   - 身份字段（turn/step/sessionId）对齐 harness 事件形状。
 - **对生态的提案**：判定类数据（allow/deny/waived）的接口形状——监督插件
   （如 dsh-supervisor）有稳定接口则消费，否则文档化约定 + 预留（M3）。
+- **对生态的提案（数字映射，待官方）**：harness 官方为公开事件词汇背书稳定
+  数字码（如 `tool/call → 1`），基座即可消费并逐步在派生层附加 `eventTypeId`
+  ——**建议底稿即 `dsh-audit-common` 的 `PROVISIONAL_SEEDS`**（当前基座消费的
+  事件清单）；落地方式：官方发布映射 → 基座以 `defineEventTypes` 注册 frozen
+  条目 → 派生钩子自动产出数字码，存储与旧记录零改动（详见
+  docs/technical-selections.md T4-3）。
 
 ## 4. 事件词汇（消费容错超集，草案）
 

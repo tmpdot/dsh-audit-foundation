@@ -20,6 +20,11 @@ export const auditRecordSchema = z.object({
   time: z.number().int().nonnegative(), // epoch 毫秒
   category: z.enum(AUDIT_CATEGORIES),
   eventType: z.string().min(1), // harness 事件类型原文（如 'approval/decided'）
+  // T4-3 数字映射演进（加法字段，见 docs/technical-selections.md T4-3）：
+  // eventType 原文是存储层永久主键，任何情况下不重写；eventTypeId 仅当事件
+  // 已注册且 frozen（官方背书）时由派生钩子附加，旧记录永远不补写、不迁移——
+  // 迁移是读路径的事（common/event-registry.mjs），不是数据重写。
+  eventTypeId: z.number().int().positive().optional(),
   source: z.enum(AUDIT_SOURCES), // 事件来源（harness 会话事件 / cdp 自产）
   turn: z.number().int().positive().optional(), // 身份字段对齐 harness 形状
   step: z.number().int().positive().optional(),

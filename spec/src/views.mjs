@@ -100,13 +100,15 @@ export const diffViewSchema = z.object({
 
 // 审计记录视图（F7/F8）：category/source 词汇**复用 audit 域导出**（M0，
 // 不重声明）；eventType 为 harness 事件类型原文（T4-3：一切皆插件的代价，
-// 暂以原文存储，未来向公开映射演进）；verified 为哈希链校验结果
-// （M7："哈希 ≠ 密封"，仅展示校验状态）。
+// 暂以原文存储，未来向公开映射演进——eventTypeId 为加法字段，仅 frozen
+// 官方事件携带，读路径经 common/event-registry.mjs 解析，旧记录不重写）；
+// verified 为哈希链校验结果（M7："哈希 ≠ 密封"，仅展示校验状态）。
 export const auditViewRecordSchema = z.object({
   id: z.string().min(1),
   time: z.number().int().nonnegative(), // epoch 毫秒
   category: z.enum(AUDIT_CATEGORIES), // 复用 audit 域词汇
   eventType: z.string().min(1), // harness 事件类型原文
+  eventTypeId: z.number().int().positive().optional(), // T4-3 数字映射（仅 frozen 事件）
   source: z.enum(AUDIT_SOURCES), // 复用 audit 域词汇
   turn: z.number().int().positive().optional(),
   step: z.number().int().positive().optional(),

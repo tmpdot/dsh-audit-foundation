@@ -7,6 +7,13 @@
 
 ### Added
 
+- **T4-3 迁移地基（2026-08-21）**：`audit.mjs` 记录 schema 与 `views.mjs`
+  audit-view 记录 schema 增加可选 `eventTypeId`（正整数，**加法字段**、向后
+  兼容）——`eventType` 原文是存储层永久主键，任何情况下不重写；`eventTypeId`
+  仅当事件类型在 `dsh-audit-common` 的 `event-registry.mjs` 中已注册且 frozen
+  （官方背书）时由派生钩子附加。迁移 = 读路径的事（换注册数据 + 翻标志），
+  旧记录永不补写；未注册/未冻结事件原文透传无码（M8"一切皆插件"）。详见
+  docs/technical-selections.md T4-3。
 - `views.mjs`（草案 v2，D9；2026-08-21 T4-4 拍板）：视图模型 schema——timeline-node
   （三源合并 + degraded/notes 降级标注 + badges 判定徽标预留）、diff-view
   （path + status added/modified/deleted + hunks + truncated）、audit-view
