@@ -14,8 +14,8 @@ DeepSeek Harness 生态的**安全与审计基座**（理念名 Trust Anchor）�
 
 ## 非协商条款
 
-1. **MDP 是最高规范**（`spec/MDP.md`）。任何包/PR 必须能逐条回答 M0–M9 的
-   判定标准；spec 校验器必须从包导出，**禁止同构重声明**（M0）——消费方
+1. **MDP 是最高规范**（`spec/MDP.md`）。任何包/PR 必须能逐条回答总纲 +
+   M0–M10 的判定标准；spec 校验器必须从包导出，**禁止同构重声明**（M0）——消费方
    `import` 本仓库导出的 schema，不复制。
 2. **写路径单一且边界显式**（M6）。每个包的写路径必须在其 README/SECURITY
    明示；路径校验一律用 `dsh-audit-common` 的 `pathguard`（提取自
@@ -39,6 +39,10 @@ DeepSeek Harness 生态的**安全与审计基座**（理念名 Trust Anchor）�
    JSON/CI）；用 write/edit 工具或 `[System.IO.File]::WriteAllText(…, UTF8Encoding($false))`。
 8. **版本策略**：0.x 慢节奏，批功能成 minor；**1.0.0 保留给 spec 冻结**
    （MDP + 域 spec + CONTRACT 完备且冻结，无已知 P0 债务），不是版本计数器目标。
+9. **生态优先，行业标准第二**：标准是手段、生态是目的。T1–T3 默认执行，但采纳
+   标准会损害生态对齐（接口可对齐性 / harness 事件词汇不被扭曲 / 消费者的
+   组合性）时**偏离并记录理由**，"部分对齐"为默认立场（见 technical-selections
+   规则 5 与 MDP 总纲；README"理念"节是本条面向开发者的定位表述）。
 
 ## 仓库布局
 
@@ -69,6 +73,7 @@ pnpm test:common      # 仅公共库
   直接执行（先 web_search 核实原文留链接）；T3 行业惯例执行+记录；T4 无标准则
   收集生态相似插件 + 行业方案、记录对标立场后执行，进"待决策"清单；影响对外
   契约形状（域 schema / 视图模型 / 端点）的 T4 在契约冻结（1.0.0）前必须拍板。
+  **生态优先**：任何层级若采纳标准损害生态对齐，偏离并记录理由（规则 5）。
 - 发布：每包独立 `npm publish`（prepack 自动跑测试）→ profile 组合安装 →
   tag + `dsh-plugin` dist-tag；host 侧改动需 harness 重启，纯客户端改动刷新页面。
 

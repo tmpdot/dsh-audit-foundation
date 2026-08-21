@@ -18,6 +18,12 @@
 - 测试：视图模型 7 项（views.test.mjs）+ manifest 2 项 + 审计策略 3 项
   （domains.test.mjs）。
 
+### Changed
+
+- MDP 新增"总纲：生态优先，行业标准第二"（标准是手段、生态是目的；采纳标准损害
+  生态对齐时偏离并记录理由，"部分对齐"为默认立场；锚点 technical-selections
+  规则 5）。README / 设计文档同步定位表述。
+
 ## [0.1.0] - 2026-08
 
 ### Added

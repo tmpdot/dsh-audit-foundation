@@ -1,5 +1,8 @@
 # 安全与审计基座：组合包建库设计草案（2026-08）
 
+> **English**: [bundle-foundation-design.md](bundle-foundation-design.md) · 本文为
+> 中文翻译版，正本为英文。
+
 > **来源**：dsh-checkpoint-diff/docs/bundle-foundation-design.md（2026-08 迁入本
 > 仓库 docs/，作为建库决策记录；旧仓库副本保留不动）。
 
