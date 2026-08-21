@@ -6,13 +6,14 @@
 > **Source**: dsh-checkpoint-diff/docs/bundle-foundation-design.md (migrated into this
 > repository's docs/ in 2026-08 as the library-building decision record; the old repository copy is kept unchanged).
 
-> **Status**: Draft v0.4. Decided: **D1 (`dsh-audit-foundation`, concept name Trust Anchor)**,
+> **Status**: Draft v0.5. Decided: **D1 (`dsh-audit-foundation`, concept name Trust Anchor)**,
 > **D2 (monorepo)**, **D3 (light maintenance of diff + code reuse)**, **D4 (no gate)**,
 > **D5 (audit-ledger in the first phase, baseline scope)**, **D6 (no signature commitment, interface slot reserved)**,
-> **D7 (SARIF left to other plugins)**, **D9 (UI and data separation: view model contract + reusable UI)**,
+> **D7 (SARIF left to other plugins)**, **D8 (repository created at `tmpdot/dsh-audit-foundation`,
+> single-person namespace, collaboration mode retained)**, **D9 (UI and data separation: view model contract + reusable UI)**,
 > **technical-selections workflow (T1–T4 tiers, full version approved by the user on 2026-08-20; register
-> `docs/technical-selections.md`, see §10)**;
-> pending decision: D8 (GitHub repository creation/ownership, user action). Direction confirmation (user direction, 2026-08):
+> `docs/technical-selections.md`, see §10)**.
+> Direction confirmation (user direction, 2026-08):
 > ① the project itself is an **ecosystem standard** (interface spec + data storage format), unifying upstream and downstream; ② follow
 > **current mainstream audit implementation approaches**: only basic features and clearly bounded components are built; optional extensions are left to other plugins;
 > ③ presentation layer: **UI and data separation**, UI interfaces exposed, other plugins can reuse the UI with the same data structures (see §9);
@@ -306,7 +307,7 @@ only basic features with clear boundaries are built; optional extensions (gates/
 | D5 | Whether `dsh-audit-ledger` (audit domain) ships in the first phase | **first phase** ✅ decided (audit A is the foundation's core commitment; the ecosystem's ad-hoc implementations do not meet the bar). **Baseline scope**: paired event aggregation + hash chain + retention; advanced analysis/aggregated reports left to the ecosystem | second phase (producer + consumer first) |
 | D6 | Signatures/tamper-proofing | **no commitment** ✅ decided (key management undecided; M7 only goes up to hash chains; signatures left to ecosystem plugins, interface slot reserved) | reserve the interface slot |
 | D7 | SARIF export | **JSON+MD only in the first phase** ✅ decided (direction confirmation ②: optional extensions left to other plugins; SARIF no longer gets an audience-judgment write-up) | everything in the first phase |
-| D8 | Namespace ownership | new **organization**, collaboration-mode preferred (user direction 2026-08-21: shared/team ownership over a single-person namespace; commit identity is left to each contributor's local git config) — **pending the user creating the GitHub repository** | single-person namespace |
+| D8 | Namespace ownership | **single-person namespace `tmpdot`** ✅ decided (2026-08-21: repository created at `github.com/tmpdot/dsh-audit-foundation`; collaboration mode retained — commit identity is left to each contributor's local git config; a dedicated organization was not created at this time, can be revisited if multi-repo ownership later demands it) | new **organization** (deferred, not chosen at creation) |
 | D9 | Presentation layer: UI and data separation | **separate + expose UI interfaces** ✅ decided (direction confirmation ③): view model schemas go into the spec package; `dsh-audit-ui` components consume only view models; other plugins with the same data structures can reuse the UI (see §9) | UI coupled to data (not chosen: the ecosystem cannot reuse) |
 
 ---

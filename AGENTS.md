@@ -8,9 +8,9 @@
 DeepSeek Harness 生态的**安全与审计基座**（理念名 Trust Anchor）：规范包 +
 最小职责插件。规范锚点在 `spec/`（MDP / CONTRACT / DOMAINS + 纯 zod 校验器），
 插件在 `packages/`。设计决策记录在 `docs/bundle-foundation-design.md`
-（D1 命名 / D2 monorepo / D3 diff 轻维护+复用 / D4–D7、D9 已拍板；D8 GitHub
-建仓待办）；关键技术选型登记在 `docs/technical-selections.md`（T1–T4 分层工作流，
-见 §10 规则）。
+（D1 命名 / D2 monorepo / D3 diff 轻维护+复用 / D4–D7、D9 已拍板；D8 仓库已建
+于 `tmpdot/dsh-audit-foundation`，协作模式保留）；关键技术选型登记在
+`docs/technical-selections.md`（T1–T4 分层工作流，见 §10 规则）。
 
 ## 非协商条款
 
@@ -32,9 +32,10 @@ DeepSeek Harness 生态的**安全与审计基座**（理念名 Trust Anchor）�
    [dsh-checkpoint-rewind](https://github.com/PerryLink/dsh-checkpoint-rewind)，
    它是只读上游参考。
 5. **提交身份与仓库归属**：不强制任何提交身份——由本地 agent 按当前 git
-   配置自行判断（协作友好，不做单一身份锁定）。归属**倾向协作模式**：仓库
-   建议置于组织名下（所有权中立、利于多人/多 agent 协作），最终归属见
-   `docs/bundle-foundation-design.md` D8（GitHub 建仓为待办）。
+   配置自行判断（协作友好，不做单一身份锁定）。归属**协作模式**：仓库建于
+   `tmpdot/dsh-audit-foundation`（个人命名空间，所有权中立、利于多人/多
+   agent 协作；未设独立组织，最终归属见 `docs/bundle-foundation-design.md`
+   D8）。
 6. **Token 卫生**：任何 token 绝不写入仓库文件；只用环境变量或一次性
    `git -c http.extraheader=...`。
 7. **写文件编码**：禁止 PowerShell `Set-Content -Encoding utf8`（BOM 破坏
