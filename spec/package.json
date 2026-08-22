@@ -21,7 +21,7 @@
     "zod": "^4.4.3"
   },
   "scripts": {
-    "test": "node --test-isolation=none --test \"test/**/*.test.mjs\"",
+    "test": "node --experimental-test-isolation=none --test \"test/**/*.test.mjs\"",
     "prepack": "npm test"
   },
   "engines": {

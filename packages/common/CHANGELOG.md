@@ -6,6 +6,12 @@
 
 ### Added
 
+- `event-registry.mjs`：**PROVISIONAL_SEEDS 增补（2026-08-22）**——
+  `approval/policy`（0xe008）、`sandbox/mode`（0xe009）；种子注释标注全部
+  harness 词汇经源码核实（`KNOWN_SESSION_EVENT_TYPES` + user-approval /
+  permission-presets / sandbox-policy / core-tools 的 SessionEventMap，
+  deepseek-harness 2026-08-22），`checkpoint/*` 为基座自有扩展事件（非
+  harness 词汇）。
 - `event-registry.mjs`（新增，T4-3 数字映射迁移地基）：事件类型注册表——
   `createEventTypeRegistry` 工厂（eventType↔code 双射、冲突抛错、相同条目幂等
   跳过 = 热重载安全、可选 frozen 门禁）+ `PROVISIONAL_SEEDS` 预置种子（当前

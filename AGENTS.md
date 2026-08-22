@@ -17,14 +17,20 @@ DeepSeek Harness 生态的**安全与审计基座**（理念名 Trust Anchor）�
 1. **MDP 是最高规范**（`spec/MDP.md`）。任何包/PR 必须能逐条回答总纲 +
    M0–M10 的判定标准；spec 校验器必须从包导出，**禁止同构重声明**（M0）——消费方
    `import` 本仓库导出的 schema，不复制。
-2. **写路径单一且边界显式**（M6）。每个包的写路径必须在其 README/SECURITY
+2. **写路径显式且边界清晰**（M6）。每个包的写路径必须在其 README/SECURITY
    明示；路径校验一律用 `dsh-audit-common` 的 `pathguard`（提取自
    dsh-checkpoint-diff 的 rollback 安全层），**不各写一份**。回滚六不变量见
    `spec/CONTRACT.md` §2，任何"恢复工作区"的实现必须遵循。
 3. **只读消费 harness 服务**（M8）。`ctx.get('sessionQuery')` 等一律**每次
    请求现取**（getter 传入，绝不一次性捕获——diff 仓库踩过的竞态教训）；
-   不 inject 一次性快照；复用 harness 事件（`fs/*-intent`、`tools/*`、
-   `approval/*`、`permission/preset`），不发明平行语义。
+   不 inject 一次性快照；复用 harness 事件，不发明平行语义。**事件词汇以
+   harness 源码为准**（`KNOWN_SESSION_EVENT_TYPES` + 各包 SessionEventMap
+   声明，2026-08-22 已核实）：`tool/call`、`tool/result`、`approval/asked`+
+   `decided`+`policy`、`permission/preset`、`sandbox/mode` 是**持久会话事件**，
+   观察经 `session/event`（查 `event.type`）或 `sessionQuery`，**不是**
+   `ctx.on('tool/*')`（那是实时 Cordis 事件，如 `approval/request` waterfall）；
+   `fs/write-intent` / `fs/edit-intent`（waterfall 门禁）、`fs/observed`（emit
+   观测）、`tools/*` 流水线是实时扩展点。
 4. **不 fork 上游代码**（M8）。本仓库模块若来自
    [dsh-checkpoint-diff](https://github.com/tmpdot/dsh-checkpoint-diff) 迁移，
    必须在文件头注明来源（`migrated from dsh-checkpoint-diff@0.5.x (lib/…)`）；
@@ -68,7 +74,9 @@ docs/                设计决策（bundle-foundation-design.md）+ 技术选型
 
 ```bash
 pnpm install
-pnpm test             # 全部包 node --test（--test-isolation=none）
+pnpm test             # 全部包 node --test（--experimental-test-isolation=none：
+                      #   node 22 实验期标志名，node 24 转正为 --test-isolation——
+                      #   用带前缀的写法两个 LTS 都兼容，勿要求 node ≥24）
 pnpm test:spec        # 仅规范包
 pnpm test:common      # 仅公共库
 ```
@@ -86,6 +94,15 @@ pnpm test:common      # 仅公共库
   真实插件演练是兼容性下界，设计权威在 spec 作者——**观察一切、默认不采纳**。
 - 发布：每包独立 `npm publish`（prepack 自动跑测试）→ profile 组合安装 →
   tag + `dsh-plugin` dist-tag；host 侧改动需 harness 重启，纯客户端改动刷新页面。
+- 交付形态（官方插件标准，2026-08 核实）：组合包（bundle，`dsh.bundle`
+  manifest + `cordis.patch.yml`）vs profile（`dsh.profile`）——**patch 层按
+  行胜出，不是深度合并**：patch 覆盖前面层的行时必须重述该行全部键，不要只写
+  改动的键；用户 profile 的 `cordis.patch.yml` 在组合包层之后应用。git 安装
+  （`dsh plugin add github:…`）拉取源码：**作者须提供自包含 prepare 脚本**
+  （不依赖 monorepo 上下文）；**用户须为构建授权**（pnpm ≥10 在显式允许前
+  拒绝 git 依赖的 prepare 脚本——把包键加进 profile 的 pnpm-workspace.yaml
+  `allowBuilds`，并**锁定 commit**，让后续推送无法悄悄改变实际运行内容）；
+  不想让用户授权就分发构建产物（npm 发布或 tarball）。
 
 ## 迁移来源清单（D3 落地）
 

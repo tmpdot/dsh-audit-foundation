@@ -13,6 +13,15 @@ const toolResult = {
   type: 'tool/result', seq: 2, time: 11,
   data: { callId: 'c1', isError: false, output: 'ok' },
 }
+// harness 实际形状（源码核实 2026-08-22）：callId 在 data.message.callId
+const toolResultHarnessShape = {
+  type: 'tool/result', seq: 2, time: 11,
+  data: {
+    turn: 1, step: 2,
+    message: { callId: 'c1', content: [{ type: 'text', text: 'ok' }], isError: false },
+    error: undefined,
+  },
+}
 
 test('classify: tool/call and tool/result map to category tool with identity fields', () => {
   const call = classifyEvent(toolCall)
@@ -30,10 +39,22 @@ test('classify: tool/call and tool/result map to category tool with identity fie
   assert.equal(result.callId, 'c1')
 })
 
-test('classify: approval pair, permission/preset and checkpoint/* map by category', () => {
+test('classify: tool/result in harness shape resolves callId from message.callId', () => {
+  const result = classifyEvent(toolResultHarnessShape)
+  assert.equal(result.category, 'tool')
+  assert.equal(result.eventType, 'tool/result')
+  assert.equal(result.callId, 'c1') // 顶层无 callId，从 message.callId 取
+  assert.equal(result.turn, 1) // harness 形状顶层带 turn/step
+  assert.equal(result.step, 2)
+  assert.deepEqual(result.payload, { isError: false }) // isError 从 message 层取
+})
+
+test('classify: approval pair/policy, permission/preset, sandbox/mode and checkpoint/* map by category', () => {
   assert.equal(classifyEvent({ type: 'approval/asked', data: { agent: 'a' } }).category, 'approval')
   assert.equal(classifyEvent({ type: 'approval/decided', data: { outcome: 'allowed-once' } }).category, 'approval')
+  assert.equal(classifyEvent({ type: 'approval/policy', data: { policy: 'never' } }).category, 'approval')
   assert.equal(classifyEvent({ type: 'permission/preset', data: { preset: 'workspace-write' } }).category, 'permission')
+  assert.equal(classifyEvent({ type: 'sandbox/mode', data: { mode: 'read-only' } }).category, 'permission')
   assert.equal(classifyEvent({ type: 'checkpoint/snapshot', data: { id: 'x' } }).category, 'snapshot')
   assert.equal(classifyEvent({ type: 'checkpoint/restore' }).category, 'snapshot')
 })

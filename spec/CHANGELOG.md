@@ -7,6 +7,15 @@
 
 ### Added
 
+- **事件词汇源码核实（2026-08-22）**：`events.mjs` 全部消费词汇对照 harness
+  源码核实（`core/session/src/known-event-types.ts` 52 个持久事件类型 +
+  user-approval / permission-presets / sandbox-policy / core-tools 的
+  SessionEventMap 声明）——新增 `approvalPolicyEventSchema`（`approval/policy`，
+  policy ask|never + source? delegation）、`sandboxModeEventSchema`
+  （`sandbox/mode`，read-only|workspace-write|danger-full-access + source?）；
+  `toolResultEventSchema` 修正为 harness 实际形状（`callId` 在
+  `data.message.callId`，error {name,code}，meta?；顶层 callId 保留容错兼容）；
+  `checkpoint/*` 标注为基座自有扩展事件（非 harness 词汇）。
 - **T4-3 迁移地基（2026-08-21）**：`audit.mjs` 记录 schema 与 `views.mjs`
   audit-view 记录 schema 增加可选 `eventTypeId`（正整数，**加法字段**、向后
   兼容）——`eventType` 原文是存储层永久主键，任何情况下不重写；`eventTypeId`
@@ -34,6 +43,41 @@
 
 ### Changed
 
+- **事件词汇来源说明（2026-08-22）**：`events.mjs` / DOMAINS.md §3–§4 明确——
+  持久会话事件观察经 `session/event`（查 `event.type`）或 `sessionQuery`，不是
+  `ctx.on('tool/*')`（实时 Cordis 事件，如 `approval/request` waterfall）；
+  `approval/asked`+`decided` 成对且 turn 内闭合、按 `id` 配对（user-approval
+  保证）；`approval/policy` 最后一条为当前策略；`permission/preset` 贯通写入
+  `sandbox/mode`；`checkpoint/*` 为基座自有扩展事件（producer 发出）。
+  详见 docs/ecosystem-observation.md 2026-08-22 行。
+- **MDP M6 修订（2026-08-22）**：标题"One explicit write path（写路径单一
+  且边界显式）"改为"Explicit, clearly-bounded write paths（写路径显式且
+  边界清晰）"——避免"单一"的数量误解；判定补两条（每个写路径列出数据目标/
+  触发条件/权限要求、SECURITY.md 可逐条对账；写路径的数量与类型与 M1 职责
+  一致、无职责外写入）；补违例（rollback 内嵌路径校验、每写路径一份副本）；
+  合规示例改为 `dsh-checkpoint-producer` 与 `dsh-checkpoint-rollback` 所有
+  写路径调用同一 pathguard 纯函数库（零 DSH 依赖）、各自 SECURITY.md 逐条
+  列出写路径；定义补与 M4 的分工（路径校验独立化遵循 M4——唯一归属包；本条
+  只管写路径显式化与校验共享，不重复 M4 通用规则）。AGENTS.md #2 标题措辞
+  同步。
+- **MDP M2–M5 修订（2026-08-22）**：
+  - M2：明确"容错超集 ≠ 不校验"——判定改为消费者**导入**生产者 schema 做
+    容错解析（忽略未知字段、容忍可选缺失），不复制、不全跳过校验；合规示例
+    改为 `dsh-checkpoint-producer` 从包导出 cdp-snapshots 域 schema +
+    `dsh-checkpoint-timeline` 导入解析，README 写明"未知字段忽略，必填缺失
+    降级报告"（契约 §1.1 已立范：双版本消费，严格性属于生产者）。
+  - M3：补完备性判定"凡产生跨插件数据必提供访问接口"（与 M0 区分：M0 管
+    schema 导出，M3 管访问接口存在——可导入的 schema ≠ 可达的数据）；"最小"
+    加标准先行豁免（T1/T2 规定接口不算"没人用"，基座不得借"最小"自我设限）——
+    M3 真正做到"最小但完备"。
+  - M4：判定细化为四条（唯一归属包 / 只依赖公开接口或事件协议 / 无重复实现 /
+    换实现调用方零改动）；定义"时间源"改为"时间语义（文档约定，不建服务，
+    见设计文档 §4）"；合规示例换为 pathguard / hash 单一实现 /
+    dsh-audit-ledger 独立插件，违例补 rollback 内嵌路径校验、多插件重复哈希。
+  - M5：定义补"读 vs 写"——读取路径缺依赖优先降级标注（保可读）、写入路径
+    缺依赖优先失败关闭（保安全边界）；判定补"容错解析时必填缺失/类型错误
+    视作依赖缺失，必须显式标注、不得静默填默认值"（与 M2 互相咬合）；违例补
+    "依赖缺失静默返回空列表/空数据、不标注 degraded"。
 - **MDP 总纲验收标准扩展**（2026-08-21）：每轮涉及生态面对决策必须回答"观察到了
   什么、修订了什么、保护了什么"；生态对齐验证双层（兼容性下界 = 真实插件可接入，
   质量上界 = 规范作者对 MDP + 行业对标判断）；核心立场"观察一切、默认不采纳"。

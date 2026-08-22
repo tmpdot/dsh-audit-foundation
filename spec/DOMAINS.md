@@ -44,18 +44,27 @@
 - **状态**：草案 v1（schema + 审计策略 + 派生纯函数已落地 2026-08；
   `dsh-audit-ledger` 插件壳规划中——纯函数层零 DSH 依赖，CI 可测）。
 - **定位**：把 harness 关键事件聚合为追加式审计记录：`approval/asked` +
-  `approval/decided` 成对、`permission/preset`、`tool/call` + `tool/result`、
-  `checkpoint/*`、恢复（rollback）应用——**消费 harness 事件，不发明平行
-  语义**（M4/M8）；payload 保留事件 data 快照。
+  `approval/decided` 成对、`approval/policy`（策略切换）、`permission/preset` +
+  `sandbox/mode`（权限/模式切换）、`tool/call` + `tool/result`、
+  `checkpoint/*`（基座自有扩展）、恢复（rollback）应用——**消费 harness
+  事件，不发明平行语义**（M4/M8）；payload 保留事件 data 快照。
+  **事件源为 harness 持久会话事件**（KNOWN_SESSION_EVENT_TYPES，源码核实
+  2026-08-22）：观察路径是 `session/event`（查 `event.type`）或
+  `sessionQuery`，**不是** `ctx.on('tool/*')`（那是实时 Cordis 事件，二者
+  不同面——如 `approval/request` 是实时 waterfall 分派，`approval/asked`+
+  `decided` 是它落盘的持久审计对，成对且 turn 内闭合，按 `id` 配对）。
 - **审计策略（F19）**：`auditPolicySchema`（`src/audit.mjs`）——`enabled`
   总开关 / `categories` 过滤（缺省全录）/ `retention` 配额（缺省不限；
   逐出语义对齐 `dsh-audit-common` 的 `computeRetention`，数量/字节独立生效、
   逐出最旧）。
 - **事件 → 记录派生**：`dsh-audit-ledger` 的 `src/derive.mjs`（纯函数，零 DSH
-  依赖）——harness 事件归类（tool/call+result → tool、approval 成对 →
-  approval、permission/preset → permission、checkpoint/* → snapshot），未知
-  事件跳过；只产语义核，`id/seq/time/prevHash` 由写路径落盘补齐（M7）。
-  **rollback / guard 类别为预留位**（生态事件，基础范围不发明平行语义）。
+  依赖）——harness 事件归类（tool/call+result → tool、approval 成对 +
+  approval/policy → approval、permission/preset + sandbox/mode → permission、
+  checkpoint/* → snapshot），未知事件跳过；只产语义核，`id/seq/time/prevHash`
+  由写路径落盘补齐（M7）。
+  **rollback / guard 类别为预留位**（生态事件，基础范围不发明平行语义；
+  guard 命名对齐 harness `packages/guard` 包族——loop-hygiene guard，
+  核心服务/扩展点的自包含消费者，非可替换能力）。
   T4-3 数字映射地基：注册表经 options 注入（缺省 `dsh-audit-common` 默认
   实例），仅 **frozen**（官方背书）事件附加 `eventTypeId`，原文永远保留。
 - **记录 schema**：`src/audit.mjs`。要点：
@@ -81,7 +90,14 @@
 ## 4. 事件词汇（消费容错超集，草案）
 
 `src/events.mjs`：`tool/call`、`tool/result`、`approval/asked`、
-`approval/decided`、`permission/preset`、`checkpoint/*` 的 zod 校验。
+`approval/decided`、`approval/policy`、`permission/preset`、`sandbox/mode`、
+`checkpoint/*` 的 zod 校验。harness 词汇均经源码核实（2026-08-22，
+KNOWN_SESSION_EVENT_TYPES + user-approval / permission-presets /
+sandbox-policy / core-tools 的 SessionEventMap 声明）：`tool/result` 的
+`callId` 在 `data.message.callId`（顶层为早期形状，容错兼容）；`approval/*`
+成对（asked+decided，`id` 配对）且 turn 内闭合，`approval/policy` 最后一条
+为当前策略；`permission/preset` 贯通写入 `sandbox/mode`（模式切换）。
+`checkpoint/*` 为**基座自有扩展事件**（producer 插件发出，非 harness 词汇）。
 形状对齐 harness 会话事件（`session.jsonl.zstd` / `sessionQuery.readSession`）；
 容错超集——未知字段剥离，精确严格性属于 harness 生产者。
 

@@ -1,12 +1,17 @@
 // src/derive.mjs — harness 会话事件 → audit 记录派生（纯函数，零 DSH 依赖，
 // CI 可测）。消费 harness 事件，不发明平行语义（M8）；类别归属见
-// DOMAINS.md §3：tool/call+result → tool、approval 成对 → approval、
-// permission/preset → permission、checkpoint/* → snapshot。
+// DOMAINS.md §3：tool/call+result → tool、approval 成对 + approval/policy →
+// approval、permission/preset + sandbox/mode → permission、checkpoint/* → snapshot。
 //
 // 只产出"语义核"（category / eventType / payload / 身份字段）；id / seq /
 // time / prevHash 由 ledger 写路径在落盘时补齐（追加式 + 哈希链，M7）。
 // rollback / guard 类别为预留位（生态事件，基础范围不发明平行语义）。
 // 容错超集：未知事件跳过（不报错）；payload 缺失字段不产出（M2/M5）。
+//
+// 事件源：harness **持久会话事件**（KNOWN_SESSION_EVENT_TYPES，源码核实
+// 2026-08-22）——观察路径为 session/event（查 event.type）或 sessionQuery，
+// 不是 ctx.on('tool/*')；tool/result 的 callId 在 data.message.callId
+// （顶层 callId 为早期形状，兼容保留）。
 //
 // T4-3 数字映射地基（见 docs/technical-selections.md T4-3）：eventType 原文
 // 永远保留（存储层永久主键）；eventTypeId 是**加法字段**，仅当事件类型已
@@ -39,15 +44,26 @@ export function classifyEvent(event) {
       return {
         category: 'tool',
         eventType: 'tool/result',
-        payload: pickDefined(data, ['isError', 'error']),
-        callId: data.callId,
+        // isError：顶层（早期形状）或 message 层（harness 实际形状）兼容；
+        // error：顶层 { name, code }（harness）或早期字符串。
+        payload: pickDefined(
+          { ...data, isError: data.isError ?? data.message?.isError },
+          ['isError', 'error'],
+        ),
+        turn: data.turn,
+        step: data.step,
+        callId: data.callId ?? data.message?.callId, // harness 实际形状：message.callId
       }
     case 'approval/asked':
       return { category: 'approval', eventType: 'approval/asked', payload: data }
     case 'approval/decided':
       return { category: 'approval', eventType: 'approval/decided', payload: data }
+    case 'approval/policy':
+      return { category: 'approval', eventType: 'approval/policy', payload: data }
     case 'permission/preset':
       return { category: 'permission', eventType: 'permission/preset', payload: data }
+    case 'sandbox/mode':
+      return { category: 'permission', eventType: 'sandbox/mode', payload: data }
     default:
       return event.type.startsWith('checkpoint/')
         ? { category: 'snapshot', eventType: event.type, payload: data }

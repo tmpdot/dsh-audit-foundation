@@ -7,12 +7,14 @@ import { createHash } from 'node:crypto'
 import {
   approvalAskedEventSchema,
   approvalDecidedEventSchema,
+  approvalPolicyEventSchema,
   auditPolicySchema,
   auditRecordSchema,
   cdpSnapshotManifestSchema,
   cdpSnapshotRecordSchema,
   checkpointEventSchema,
   permissionPresetEventSchema,
+  sandboxModeEventSchema,
   toolCallEventSchema,
   toolResultEventSchema,
 } from '../src/index.mjs'
@@ -109,11 +111,40 @@ test('events: tool/result tolerates arbitrary success payloads (passthrough)', (
   assert.deepEqual(parsed.data.anything, { nested: true })
 })
 
+test('events: tool/result in harness shape (message.callId, error {name,code}) passes', () => {
+  // harness 实际形状（源码核实 2026-08-22）：callId 在 data.message.callId
+  const parsed = toolResultEventSchema.parse({
+    type: 'tool/result', seq: 3, time: 101,
+    data: {
+      turn: 1, step: 2,
+      message: { callId: 'c3', content: [{ type: 'text', text: 'ok' }], isError: false },
+      error: { name: 'ToolError', code: 'E_FAIL' },
+      meta: { diff: [] },
+    },
+  })
+  assert.equal(parsed.data.message.callId, 'c3')
+  assert.equal(parsed.data.error.code, 'E_FAIL')
+  // 早期形状顶层 callId 仍兼容（容错超集）
+  assert.throws(() => toolResultEventSchema.parse({ type: 'tool/result', seq: 3, data: { message: {} } }))
+})
+
 test('events: approval/asked + approval/decided pair with tolerant data', () => {
   const asked = approvalAskedEventSchema.parse({ type: 'approval/asked', seq: 1, time: 1, data: { agent: 'a' } })
   const decided = approvalDecidedEventSchema.parse({ type: 'approval/decided', seq: 2, time: 2, data: { outcome: 'allowed-once' } })
   assert.equal(asked.type, 'approval/asked')
   assert.equal(decided.data.outcome, 'allowed-once')
+})
+
+test('events: approval/policy and sandbox/mode validate harness vocabulary', () => {
+  const policy = approvalPolicyEventSchema.parse({ type: 'approval/policy', seq: 1, time: 1, data: { policy: 'never' } })
+  assert.equal(policy.data.policy, 'never')
+  assert.throws(() => approvalPolicyEventSchema.parse({ type: 'approval/policy', seq: 1, data: { policy: 'maybe' } }))
+  const mode = sandboxModeEventSchema.parse({
+    type: 'sandbox/mode', seq: 2, time: 2, data: { mode: 'workspace-write', source: 'delegation' },
+  })
+  assert.equal(mode.data.mode, 'workspace-write')
+  assert.equal(mode.data.source, 'delegation')
+  assert.throws(() => sandboxModeEventSchema.parse({ type: 'sandbox/mode', seq: 2, data: { mode: 'full' } }))
 })
 
 test('events: permission/preset requires a preset name; checkpoint/* accepts any type', () => {

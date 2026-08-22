@@ -98,65 +98,120 @@ or exposing interfaces unreasonably) violates at least one of M0–M4.
 
 - **Definition**: whoever writes the data owns the schema and its semantics;
   consumers are read-only + **tolerant superset** (strictness belongs to the
-  producer).
+  producer). Tolerant is **not** "skip validation": the consumer must
+  **import** the producer's schema and parse with it — **ignore unknown
+  fields, tolerate optional absence** — never copy the schema, never validate
+  nothing.
 - **Acceptance**: the required/optional sets of the record schema live in the
-  producer's package; the consumer's docs state "tolerant; does not validate
-  strictness".
-- **Compliant**: the checkpoints consumption schema
-  (`spec/src/checkpoints.mjs`) is the tolerant-superset template: both v1 and
-  v2 records are accepted; strictness is left to the producer.
+  producer's package; the consumer's validator is **imported** from the
+  producer (not copied, not re-declared — M0) and applied as a tolerant
+  superset; consumer docs state the tolerance policy: "unknown fields are
+  ignored; missing required fields degrade with a report" (never silently
+  defaulted).
+- **Compliant**: contract.md §1.1 already sets the pattern (double-version
+  consumption; strictness belongs to the producer). In this repo:
+  `dsh-checkpoint-producer` exports the `cdp-snapshots` domain schema from
+  its package; the consumer `dsh-checkpoint-timeline` imports that validator
+  and parses per tolerant superset, its README stating "unknown fields are
+  ignored; missing required fields degrade with a report".
 
 ## M3. Minimum exposure, complete coverage
 
-- **Definition**: expose no interface nobody uses (prevent coupling bloat);
-  omit no interface a consumer needs (prevent guessing and re-declaration).
+- **Definition**: expose no interface nobody uses (prevent coupling bloat) —
+  **standards-first exemption**: interface shapes prescribed by standards
+  (T1/T2) are not "unused"; adopting them is ecosystem alignment, not bloat
+  (the foundation must not self-limit against standards); omit no interface a
+  consumer needs — **completeness**: any plugin that **produces cross-plugin
+  data must provide an access interface for it** (M3 governs access-interface
+  existence; M0 governs schema export — an importable schema is not the same
+  as reachable data), preventing guessing and re-declaration.
 - **Acceptance**: every public interface has an **actual consumer or a written
-  proposal**; every cross-plugin data item has a schema (M0). Once an
-  interface shape stabilizes it enters the contract; changes go to CHANGELOG +
-  a minor version.
+  proposal** (standards-prescribed interfaces exempt); every cross-plugin data
+  item has a schema (M0) **and an access interface** (exported validator /
+  read endpoint / event protocol) consumers can reach; once an interface shape
+  stabilizes it enters the contract; changes go to CHANGELOG + a minor version.
 - **Violation**: dsh-supervisor's decision data (allow/deny/waived) has no
   stable interface shape → consumers can only "reserve slots + documented
   conventions".
 - **Compliant**: every draft schema in this repo is annotated with its status
-  (stable/draft) and "the interface for whom".
+  (stable/draft) and "the interface for whom"; every cross-plugin data item
+  names its access path — e.g., the view models are exported from
+  `dsh-audit-spec` (M0) **and** delivered to the UI through GET endpoints /
+  slot props (M3, D9).
 
 ## M4. Cross-cutting concerns are plugins
 
 - **Definition**: audit, permissions, path validation, hashing, labels,
-  quotas, time sources — each cross-cutting concern is an independent plugin,
-  **not embedded** in feature plugins; capabilities shared by multiple plugins
-  go through events / service interfaces, never by injecting implementations
-  into each other.
-- **Acceptance**: when any concern's implementation changes (e.g., hash
-  algorithm, label policy), only the corresponding plugin changes; nothing
-  else moves.
-- **Compliant**: harness precedents — the `fs/write-intent` event gate makes
-  fs-observation-policy attachable/detachable; user-approval's paired
-  `approval/asked` + `approval/decided` audit is independent of its consumers.
-  In this repo: pathguard / hash are standalone pure-function packages (M6/M7
-  embodied).
+  quotas, time semantics (a documented convention, not a service — see
+  bundle-foundation-design §4) — each cross-cutting concern is an independent
+  plugin, **not embedded** in feature plugins; capabilities shared by multiple
+  plugins go through events / service interfaces, never by injecting
+  implementations into each other.
+- **Acceptance**:
+  1. every cross-cutting concern has **exactly one owning package/module**;
+     its implementation is not embedded in feature plugins;
+  2. feature plugins depend only on that concern's **public interface or event
+     protocol**, never importing its internals;
+  3. the same concern has **no duplicate implementations** (no copy-pasted
+     code);
+  4. swapping that concern's implementation requires **no caller-side
+     changes** (the API is stable).
+- **Violation**: rollback embedding its own path validation (one copy per
+  write path — the historical dsh-checkpoint-diff shape); multiple plugins
+  each re-implementing hashing instead of sharing a single implementation.
+- **Compliant**: in this repo — pathguard is a standalone pure-function
+  library in `dsh-audit-common`, the single path-validation implementation
+  shared by every write path (M6); hash (`contentHash` / `recordHash`) is a
+  single implementation with two uses (producer dedup + export verifiability,
+  M7); `dsh-audit-ledger` is an independent plugin that consumes harness
+  events (`approval/asked` + `approval/decided`, `permission/preset`, …) into
+  the `audit` domain instead of embedding audit inside feature plugins.
 
 ## M5. Fail closed, degrade honestly
 
 - **Definition**: service absent → explicit degradation (degraded annotation,
   error attribution naming the cause) or fail closed; **never silent**.
+  **Read vs. write**: on a read path, a missing dependency → prefer degrade
+  and annotate (keep data readable); on a write path, a missing dependency →
+  prefer fail closed (keep the security boundary).
 - **Acceptance**: every possibly-absent dependency has a degradation matrix
-  (contract doc), and every degradation path has tests.
+  (contract doc), and every degradation path has tests. During tolerant
+  parsing, missing required fields / type errors count as **dependency
+  absence**: they must be explicitly annotated (degraded), never silently
+  filled with defaults — this interlocks M2 and M5.
+- **Violation**: dependency absent → silently return an empty list / empty
+  data without a degraded annotation, so downstream assumes "no data".
 - **Compliant**: dsh-checkpoint-diff's degraded markers / bad-object
   attribution / trace-replay drift `notes` reporting (kept when the consumer
   packages migrate into the foundation).
 
-## M6. One explicit write path
+## M6. Explicit, clearly-bounded write paths
 
 - **Definition**: every plugin's write path must be explicit in its
   README/SECURITY; path validation (rejecting `..` / absolute paths / symlink
   escapes / protected segments) is a **shared cross-cutting component**, not
-  one implementation per write path.
-- **Acceptance**: SECURITY.md can be audited line by line; write-path
-  validation across plugins shares one source (shared pure functions, not
-  copies).
-- **Compliant**: the rollback six invariants (`spec/CONTRACT.md` §2) are the
-  "explicit boundary" template; `dsh-audit-common`'s pathguard is the single
+  one implementation per write path. Division of labor with M4: path
+  validation is a cross-cutting concern whose stand-alone requirement follows
+  M4 (exactly one owning package); this principle is about **write-path
+  explicitness and shared validation**, it does not repeat M4's general
+  rules.
+- **Acceptance**:
+  1. every write path lists its **data target, trigger condition, and
+     permission requirement** in the docs (SECURITY.md is auditable line by
+     line);
+  2. the number and type of write paths match the plugin's responsibility
+     (M1) — no writes outside that responsibility;
+  3. write-path validation across plugins shares one source (shared pure
+     functions, not copies).
+- **Violation**: rollback embedding its own path validation (one copy per
+  write path) instead of importing the shared component — the historical
+  dsh-checkpoint-diff shape.
+- **Compliant**: every write path of `dsh-checkpoint-producer` and
+  `dsh-checkpoint-rollback` calls the same pathguard pure-function library
+  (zero DSH dependencies); each SECURITY.md itemizes its write paths' data
+  target, trigger condition, and permission requirement line by line. The
+  rollback six invariants (`spec/CONTRACT.md` §2) are the "explicit
+  boundary" template; `dsh-audit-common`'s pathguard is the single
   path-validation implementation.
 
 ## M7. Verifiability

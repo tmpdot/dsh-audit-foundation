@@ -25,8 +25,14 @@ export const PROVISIONAL_CODE_MIN = 0xe000
 /**
  * 预置种子：当前基座实际消费的 harness 事件词汇（frozen: false）。
  * 形状对齐 spec/src/events.mjs 与 audit-ledger/src/derive.mjs 的消费集合；
- * checkpoint/* 是命名空间（regex），注册表只登记已观测到的具体子类型，
- * 其余 checkpoint/X 未注册 → 原文透传。
+ * 以下 harness 事件均经源码核实（D:\Projects\deepseek-harness，
+ * KNOWN_SESSION_EVENT_TYPES + user-approval / permission-presets /
+ * sandbox-policy / core-tools 的 SessionEventMap，2026-08-22）：
+ *   tool/call、tool/result（core-session）、approval/asked、approval/decided、
+ *   approval/policy（user-approval）、permission/preset（permission-presets）、
+ *   sandbox/mode（sandbox-policy）。
+ * checkpoint/* 是**基座自有扩展事件**（producer 插件发出，非 harness 词汇）；
+ * 注册表只登记已观测到的具体子类型，其余 checkpoint/X 未注册 → 原文透传。
  *
  * 本表同时是"向官方建议"的清单底稿：这些就是基座正在消费、需要官方背书
  * 数字码的事件（见 DOMAINS.md §3 对生态的提案）。
@@ -39,6 +45,8 @@ export const PROVISIONAL_SEEDS = Object.freeze([
   { eventType: 'permission/preset', code: 0xe005 },
   { eventType: 'checkpoint/snapshot', code: 0xe006 },
   { eventType: 'checkpoint/restore', code: 0xe007 },
+  { eventType: 'approval/policy', code: 0xe008 },
+  { eventType: 'sandbox/mode', code: 0xe009 },
 ])
 
 /**
